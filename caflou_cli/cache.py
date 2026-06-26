@@ -12,12 +12,14 @@ STALE_DAYS = 7
 # ── normalizers (defined first so they can be referenced in CATEGORY_A) ───────
 
 def _normalize_account_user(record: dict) -> dict:
-    """Flatten account_user so name/email surface from the nested user object."""
+    """Flatten account_user so name/email surface from the nested user object.
+    Stores user_id (the ID used in entity filters) alongside the account_user id."""
     user = record.get("user") or {}
     return {
         **record,
         "name": user.get("name") or record.get("name"),
         "email": record.get("email") or user.get("email"),
+        "user_id": user.get("id") or record.get("user_id"),
     }
 
 
@@ -29,7 +31,7 @@ CATEGORY_A: dict[str, dict] = {
     "vat_rates":             {"endpoint": "vat_rates",              "paginated": True,  "display": ["id", "name", "value"]},
     "numeric_rows":          {"endpoint": "numeric_rows",           "paginated": True,  "display": ["id", "name", "kind"]},
     "bank_accounts":         {"endpoint": "bank_accounts",          "paginated": True,  "display": ["id", "name"]},
-    "account_users":         {"endpoint": "account_users",          "paginated": True,  "display": ["id", "name", "email", "role_name"], "normalize": _normalize_account_user},
+    "account_users":         {"endpoint": "account_users",          "paginated": True,  "display": ["user_id", "name", "email", "role_name"], "normalize": _normalize_account_user},
     "products":              {"endpoint": "products",               "paginated": True,  "display": ["id", "name"]},
     "tags":                  {"endpoint": "tags",                   "paginated": True,  "display": ["id", "name"]},
     "countries":             {"endpoint": "countries",              "paginated": False, "display": ["id", "name"]},

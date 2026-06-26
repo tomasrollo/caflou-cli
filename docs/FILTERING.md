@@ -7,7 +7,7 @@ Filter parameters are passed with `--filter key=value` (repeatable). The CLI tra
 ## Key patterns discovered through testing
 
 - **ID filters require the plural form.** `company_ids=X` works; `company_id=X` is silently ignored and returns all results.
-- **User IDs in filters are entity-level user IDs**, not the IDs from `caflou masterdata list account_users`. Read the `user_id` field from actual task/project records to get the correct values.
+- **User IDs in filters come from the `user_id` column in `caflou masterdata list account_users`**, not the account membership ID. Each account_user record has two IDs: the account membership `id` (internal, not useful for filtering) and `user_id` (the underlying user ID used in all entity filter lookups). The `account_users` table displays `user_id` in the first column for this reason.
 - **Singular boolean flags use their plural noun form.** The `unpaids=true` flag works; `unpaid=true` does not.
 
 ---
@@ -116,7 +116,7 @@ Use IDs from the master data cache or entity list commands.
 | `project_status_ids=ID` | confirmed | Filter by status — use plural form (see `caflou masterdata list project_statuses`) |
 | `project_type_ids=ID` | confirmed | Filter by type — use plural form (see `caflou masterdata list project_types`) |
 | `project_priority_ids=ID` | confirmed | Filter by priority — use plural form (see `caflou masterdata list project_priorities`) |
-| `user_ids=ID` | confirmed | Filter by assigned user — use plural form; ID comes from `user_id` field on project records, not from `account_users` |
+| `user_ids=ID` | confirmed | Filter by assigned user — use plural form; use the `user_id` column from `caflou masterdata list account_users` |
 | `tags=ID` | unverified | Tagged with |
 
 ---
@@ -130,7 +130,7 @@ Use IDs from the master data cache or entity list commands.
 | `task_type_ids=ID` | confirmed | Filter by type — use plural form (see `caflou masterdata list task_types`) |
 | `task_status_ids=ID` | confirmed | Filter by status — use plural form (see `caflou masterdata list task_statuses`) |
 | `task_priority_ids=ID` | confirmed | Filter by priority — use plural form (see `caflou masterdata list task_priorities`) |
-| `user_ids=ID` | confirmed | Filter by assigned user — use plural form; ID comes from `user_id` field on task records, not from `account_users` |
+| `user_ids=ID` | confirmed | Filter by assigned user — use plural form; use the `user_id` column from `caflou masterdata list account_users` |
 
 Date-based filtering for tasks has not been verified. Neither `due_date_from/to`, `start_time_from/to`, nor `end_time_from/to` produced filtered results.
 
