@@ -32,11 +32,13 @@ A work item inside a project.
 
 Key fields: `name`, `project_id`, `task_type_id`, `task_status_id`, `task_priority_id`, `due_date`, `assigned_user_id`, `estimated_hours`.
 
-### Invoice (`/invoices`)
+### Document (`/invoices`)
 
-An issued or received financial document. Contains line items (`invoice_rows`), each with a product, quantity, unit price, and VAT rate.
+A financial or commercial document. The underlying API resource is `invoices`, but the endpoint covers all document types — issued invoices, received invoices, proforma invoices, offers, order confirmations, delivery notes, credit notes (storno), tax receipts, and contracts. The `numeric_row_id` field (referencing a `numeric_rows` master data entry) determines the document type and its numbering sequence.
 
-Key fields: `company_id`, `invoice_status_id`, `numeric_row_id` (determines document number sequence), `currency`, `issue_date`, `due_date`, `bank_account_id`, `payment_rule_id`, `invoice_rows[]`.
+Contains line items (`invoice_rows`), each with a product, quantity, unit price, and VAT rate.
+
+Key fields: `company_id`, `invoice_status_id`, `numeric_row_id`, `currency`, `issue_date`, `due_date`, `bank_account_id`, `payment_rule_id`, `invoice_rows[]`.
 
 ### Timesheet (`/timesheets`)
 
@@ -107,12 +109,12 @@ The CLI discovers and caches them by scanning entity records — either passivel
 Company ──< Project ──< Task
          |           └─< Timesheet
          |
-         └──< Invoice ──< InvoiceRow ──> Product
+         └──< Document ──< InvoiceRow ──> Product
          |              └──> NumericRow       └──> VatRate
          |              └──> BankAccount
          |              └──> PaymentRule
          |
-         └──< Transfer ──> Transfer Category
+         └──< Transfer ──> TransferCategory
                         └──> BankAccount
 
 Task ──> TaskType, TaskStatus, TaskPriority

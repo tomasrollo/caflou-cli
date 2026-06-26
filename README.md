@@ -63,11 +63,13 @@ caflou contact list
 caflou contact get <id>
 ```
 
-### `invoice` — Invoices
+### `document` — Documents
+
+Covers all document types: invoices, offers, delivery notes, credit notes, etc.
 
 ```bash
-caflou invoice list
-caflou invoice get <id>
+caflou document list
+caflou document get <id>
 ```
 
 ### `project` — Projects

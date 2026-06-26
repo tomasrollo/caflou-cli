@@ -16,11 +16,11 @@ All entity command groups have `create`, `update`, and `delete` stubs that curre
 | `contact`     | POST /contacts | PATCH /contacts/{id} | DELETE /contacts/{id} |
 | `project`     | POST /projects | PATCH /projects/{id} | DELETE /projects/{id} |
 | `task`        | POST /tasks | PATCH /tasks/{id} | DELETE /tasks/{id} |
-| `invoice`     | POST /invoices | PATCH /invoices/{id} | DELETE /invoices/{id} |
+| `document`    | POST /invoices | PATCH /invoices/{id} | DELETE /invoices/{id} |
 | `timesheet`   | POST /timesheets | PATCH /timesheets/{id} | DELETE /timesheets/{id} |
 | `transfer`    | POST /transfers | PATCH /transfers/{id} | DELETE /transfers/{id} |
 
-Invoice creation in particular involves structured line items (`invoice_rows`), VAT rate references, numeric row sequence selection, and optional bank account/payment rule linkage — all of which are already available in the master data cache.
+Document creation involves structured line items (`invoice_rows`), VAT rate references, numeric row sequence selection (which also determines document type — invoice, offer, delivery note, etc.), and optional bank account/payment rule linkage — all of which are already available in the master data cache.
 
 ---
 

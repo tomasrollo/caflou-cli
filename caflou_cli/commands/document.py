@@ -8,7 +8,7 @@ from caflou_cli.output import (
     error, not_implemented, print_json, print_pagination, print_record, print_table,
 )
 
-app = typer.Typer(help="Invoice management commands.")
+app = typer.Typer(help="Document commands (invoices, offers, delivery notes, etc.).")
 
 _LIST_HEADERS = ["ID", "NUMBER", "COMPANY", "CURRENCY"]
 
@@ -33,7 +33,7 @@ def _parse_filters(raw: list[str]) -> dict:
 
 
 @app.command("list")
-def invoice_list(
+def document_list(
     account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
     page: int = typer.Option(1, "--page", help="Page number."),
@@ -41,7 +41,7 @@ def invoice_list(
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
 ) -> None:
-    """List invoices."""
+    """List documents (invoices, offers, delivery notes, etc.)."""
     client = get_client(account)
     filters = _parse_filters(filter)
 
@@ -64,12 +64,12 @@ def invoice_list(
 
 
 @app.command("get")
-def invoice_get(
-    id: int = typer.Argument(..., help="Invoice ID."),
+def document_get(
+    id: int = typer.Argument(..., help="Document ID."),
     account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
 ) -> None:
-    """Get full details of an invoice."""
+    """Get full details of a document."""
     client = get_client(account)
     data = client.get(f"invoices/{id}")
     enrich_from_entity(client.account_id, "invoices", [data])
@@ -80,18 +80,18 @@ def invoice_get(
 
 
 @app.command("create")
-def invoice_create() -> None:
-    """Create a new invoice. [NOT IMPLEMENTED]"""
-    not_implemented("invoice create")
+def document_create() -> None:
+    """Create a new document. [NOT IMPLEMENTED]"""
+    not_implemented("document create")
 
 
 @app.command("update")
-def invoice_update(id: int = typer.Argument(..., help="Invoice ID.")) -> None:
-    """Update an invoice. [NOT IMPLEMENTED]"""
-    not_implemented("invoice update")
+def document_update(id: int = typer.Argument(..., help="Document ID.")) -> None:
+    """Update a document. [NOT IMPLEMENTED]"""
+    not_implemented("document update")
 
 
 @app.command("delete")
-def invoice_delete(id: int = typer.Argument(..., help="Invoice ID.")) -> None:
-    """Delete an invoice. [NOT IMPLEMENTED]"""
-    not_implemented("invoice delete")
+def document_delete(id: int = typer.Argument(..., help="Document ID.")) -> None:
+    """Delete a document. [NOT IMPLEMENTED]"""
+    not_implemented("document delete")

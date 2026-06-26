@@ -1,6 +1,6 @@
 import typer
 
-from caflou_cli.commands import auth, company, contact, invoice, masterdata, project, task, timesheet, transfer
+from caflou_cli.commands import auth, company, contact, document, masterdata, project, task, timesheet, transfer
 
 app = typer.Typer(
     name="caflou",
@@ -13,7 +13,7 @@ app.add_typer(auth.app, name="auth")
 app.add_typer(masterdata.app, name="masterdata")
 app.add_typer(company.app, name="company")
 app.add_typer(contact.app, name="contact")
-app.add_typer(invoice.app, name="invoice")
+app.add_typer(document.app, name="document")
 app.add_typer(project.app, name="project")
 app.add_typer(task.app, name="task")
 app.add_typer(timesheet.app, name="timesheet")
