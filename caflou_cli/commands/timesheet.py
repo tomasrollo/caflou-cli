@@ -3,6 +3,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
+from caflou_cli.cache import enrich_from_entity
 from caflou_cli.output import (
     error, not_implemented, print_json, print_pagination, print_record, print_table,
 )
@@ -47,6 +48,7 @@ def timesheet_list(
 
     if all_pages:
         results = client.list_all("timesheets", filters=filters)
+        enrich_from_entity(client.account_id, "timesheets", results)
         if json_output:
             print_json(results)
         else:
@@ -54,6 +56,7 @@ def timesheet_list(
     else:
         data = client.list("timesheets", page=page, per=per, filters=filters)
         results = data.get("results", [])
+        enrich_from_entity(client.account_id, "timesheets", results)
         if json_output:
             print_json(data)
         else:
@@ -70,6 +73,7 @@ def timesheet_get(
     """Get full details of a timesheet entry."""
     client = get_client(account)
     data = client.get(f"timesheets/{id}")
+    enrich_from_entity(client.account_id, "timesheets", [data])
     if json_output:
         print_json(data)
     else:

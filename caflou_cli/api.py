@@ -21,6 +21,10 @@ class CaflouClient:
             timeout=30.0,
         )
 
+    @property
+    def account_id(self) -> str:
+        return self._account_id
+
     def _handle(self, response: httpx.Response) -> Any:
         if response.status_code == 401:
             error("Authentication failed. Run 'caflou auth login' to refresh your token.", 2)

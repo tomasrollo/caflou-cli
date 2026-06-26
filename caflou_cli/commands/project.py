@@ -3,6 +3,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
+from caflou_cli.cache import enrich_from_entity
 from caflou_cli.output import (
     error, not_implemented, print_json, print_pagination, print_record, print_table,
 )
@@ -41,6 +42,7 @@ def project_list(
 
     if all_pages:
         results = client.list_all("projects", filters=filters)
+        enrich_from_entity(client.account_id, "projects", results)
         if json_output:
             print_json(results)
         else:
@@ -48,6 +50,7 @@ def project_list(
     else:
         data = client.list("projects", page=page, per=per, filters=filters)
         results = data.get("results", [])
+        enrich_from_entity(client.account_id, "projects", results)
         if json_output:
             print_json(data)
         else:
@@ -64,6 +67,7 @@ def project_get(
     """Get full details of a project."""
     client = get_client(account)
     data = client.get(f"projects/{id}")
+    enrich_from_entity(client.account_id, "projects", [data])
     if json_output:
         print_json(data)
     else:
