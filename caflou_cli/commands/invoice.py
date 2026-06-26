@@ -37,7 +37,7 @@ def invoice_list(
     account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
     page: int = typer.Option(1, "--page", help="Page number."),
-    per: int = typer.Option(20, "--per", help="Items per page (max 1000)."),
+    per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
 ) -> None:

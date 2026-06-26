@@ -122,7 +122,7 @@ All list/get commands accept these flags:
 | `--account <id-or-name>` | Override the default account |
 | `--json` | Output raw JSON instead of formatted tables |
 | `--page <n>` | Page number (default: 1) |
-| `--per <n>` | Items per page (default: 20, max: 1000) |
+| `--per <n>` | Items per page (default: 100, max: 100) |
 | `--all` | Fetch all pages (warns if total exceeds 500) |
 | `--filter key=value` | Filter results (repeatable) |
 
