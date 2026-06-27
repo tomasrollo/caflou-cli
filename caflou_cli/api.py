@@ -34,6 +34,8 @@ class CaflouClient:
             error("Resource not found.", 3)
         elif not response.is_success:
             error(f"API error {response.status_code}: {response.text[:300]}", 1)
+        if response.status_code == 204 or not response.content:
+            return None
         return response.json()
 
     def get(self, path: str, params: Optional[dict] = None) -> Any:
@@ -52,6 +54,18 @@ class CaflouClient:
             for k, v in filters.items():
                 params[f"filter[{k}]"] = v
         return self.get(resource, params)
+
+    def post(self, path: str, data: dict) -> Any:
+        url = f"/api/v1/{self._account_id}/{path}"
+        return self._handle(self._http.post(url, json=data))
+
+    def patch(self, path: str, data: dict) -> Any:
+        url = f"/api/v1/{self._account_id}/{path}"
+        return self._handle(self._http.patch(url, json=data))
+
+    def delete(self, path: str) -> None:
+        url = f"/api/v1/{self._account_id}/{path}"
+        self._handle(self._http.delete(url))
 
     def list_all(self, resource: str, filters: Optional[dict] = None) -> list:
         import typer

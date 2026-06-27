@@ -2,13 +2,18 @@
 
 ## Current state
 
-The CLI supports read-only operations for all major transactional objects and a local cache for master data. See [README.md](../README.md) for what is implemented.
+The CLI supports:
+- Read operations for all major transactional objects
+- Full CRUD for documents (`caflou document create/update/delete/template`)
+- A local master data cache with passive enrichment
+
+See [README.md](../README.md) for full usage.
 
 ---
 
-## Planned: Write operations for transactional objects
+## Planned: Write operations for remaining transactional objects
 
-All entity command groups have `create`, `update`, and `delete` stubs that currently print "not implemented". The Caflou API supports full CRUD for all of them.
+The following command groups have `create`, `update`, and `delete` stubs that currently print "not implemented". The Caflou API supports full CRUD for all of them.
 
 | Command group | Create | Update | Delete |
 |---------------|--------|--------|--------|
@@ -16,11 +21,12 @@ All entity command groups have `create`, `update`, and `delete` stubs that curre
 | `contact`     | POST /contacts | PATCH /contacts/{id} | DELETE /contacts/{id} |
 | `project`     | POST /projects | PATCH /projects/{id} | DELETE /projects/{id} |
 | `task`        | POST /tasks | PATCH /tasks/{id} | DELETE /tasks/{id} |
-| `document`    | POST /invoices | PATCH /invoices/{id} | DELETE /invoices/{id} |
 | `timesheet`   | POST /timesheets | PATCH /timesheets/{id} | DELETE /timesheets/{id} |
 | `transfer`    | POST /transfers | PATCH /transfers/{id} | DELETE /transfers/{id} |
 
-Document creation involves structured line items (`invoice_rows`), VAT rate references, numeric row sequence selection (which also determines document type — invoice, offer, delivery note, etc.), and optional bank account/payment rule linkage — all of which are already available in the master data cache.
+**Notes from document implementation applicable to others:**
+- The API spec's `required` field list is incomplete — validate against actual API errors during implementation.
+- The PATCH endpoint for documents only exposes 3 fields (`paid`, `payment_date`, `invoice_items_attributes`); other entities may similarly have restricted update surfaces.
 
 ---
 

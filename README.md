@@ -65,12 +65,35 @@ caflou contact get <id>
 
 ### `document` — Documents
 
-Covers all document types: invoices, offers, delivery notes, credit notes, etc.
+Covers all document types: invoices, offers, delivery notes, credit notes, etc. The document type is determined by `numeric_row_id` (the numbering series). Use `caflou masterdata list numeric_rows` to see available types and their IDs.
 
 ```bash
 caflou document list
 caflou document get <id>
+
+# Create
+caflou document template issued          # print a JSON skeleton for a new issued invoice
+caflou document template offer           # skeleton for an offer
+caflou document template received        # skeleton for a received invoice
+caflou document create --from-file doc.json
+caflou document create --from-file -     # read JSON from stdin
+
+# Update (API supports: paid status, payment date, line items only)
+caflou document update <id> --paid --payment-date 2024-06-01
+caflou document update <id> --no-paid
+caflou document update <id> --from-file items.json   # replace line items
+
+# Delete (prompts for confirmation)
+caflou document delete <id>
+caflou document delete <id> --force      # skip confirmation
 ```
+
+**Supported template kinds:** `issued`, `received`, `proforma`, `proforma_received`, `offer`, `offer_received`, `order_issued`, `order_received`, `delivery`, `contract`, `contract_received`, `storno`, `storno_received`, `tax_receipt`, `tax_receipt_received`
+
+**Notes:**
+- The template pre-fills `numeric_row_id` and `vat_rate_id` from the local master data cache. Run `caflou masterdata sync` first if the cache is empty.
+- Required fields not documented in the API spec: `date_of_tax`, `date_of_payment`.
+- `update` only supports the three fields the API exposes via PATCH: `paid`, `payment_date`, and `invoice_items_attributes`.
 
 ### `project` — Projects
 
@@ -133,8 +156,9 @@ All list/get commands accept these flags:
 Use `--filter` to pass Caflou API filters. The key should match the filter field name as documented by the API:
 
 ```bash
-caflou invoice list --filter invoice_status_id=110714
-caflou task list --filter project_id=12345 --filter task_status_id=67890
+caflou document list --filter invoice_status_ids=110714
+caflou document list --filter company_ids=12345 --filter receiveds=true
+caflou task list --filter project_ids=12345 --filter task_status_ids=67890
 caflou timesheet list --all --filter date_from=2024-01-01 --filter date_to=2024-12-31
 ```
 
@@ -144,7 +168,7 @@ All commands support `--json` for machine-readable output suitable for piping to
 
 ```bash
 caflou masterdata list vat_rates --json | jq '.[] | {id, name, value}'
-caflou invoice list --all --json | jq '[.[] | {id, number, company_name}]'
+caflou document list --all --json | jq '[.[] | {id, number, company_name}]'
 ```
 
 ## Config file
