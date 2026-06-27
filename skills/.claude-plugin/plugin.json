@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "author": {
+    "email": "tomas.rollo@gmail.com",
+    "name": "Tomas Rollo"
+  },
+  "description": "Use Caflou from CLI",
+  "homepage": "https://github.com/tomasrollo/caflou-cli",
+  "keywords": [
+    "caflou"
+  ],
+  "license": "MIT",
+  "name": "caflou",
+  "repository": "https://github.com/tomasrollo/caflou-cli",
+  "skills": "./"
+}
