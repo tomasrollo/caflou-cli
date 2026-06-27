@@ -5,7 +5,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
-from caflou_cli.cache import load_cache
+from caflou_cli.cache import enrich_from_entity, load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
@@ -66,6 +66,7 @@ def contact_list(
 
     if all_pages:
         results = client.list_all("contacts", filters=filters)
+        enrich_from_entity(client.account_id, "contacts", results)
         if json_output:
             print_json(results)
         else:
@@ -73,6 +74,7 @@ def contact_list(
     else:
         data = client.list("contacts", page=page, per=per, filters=filters)
         results = data.get("results", [])
+        enrich_from_entity(client.account_id, "contacts", results)
         if json_output:
             print_json(data)
         else:
@@ -89,6 +91,7 @@ def contact_get(
     """Get full details of a contact."""
     client = get_client(account)
     data = client.get(f"contacts/{id}")
+    enrich_from_entity(client.account_id, "contacts", [data])
     if json_output:
         print_json(data)
     else:
