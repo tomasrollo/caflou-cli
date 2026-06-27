@@ -15,6 +15,91 @@ app = typer.Typer(help="Document commands (invoices, offers, delivery notes, etc
 
 _LIST_HEADERS = ["ID", "NUMBER", "COMPANY", "CURRENCY"]
 
+# ── document kind rules ───────────────────────────────────────────────────────
+# All kinds a user may specify (logical names, not necessarily API POST values).
+_VALID_KINDS = {
+    "issued", "received",
+    "proforma", "proforma_received",
+    "offer", "offer_received",
+    "order_issued", "order_received",
+    "delivery",
+    "storno", "storno_received",
+    "contract", "contract_received",
+    "tax_receipt", "tax_receipt_received",
+}
+
+# Kinds requiring date_of_tax and date_of_payment (confirmed by API testing).
+_FINANCIAL_KINDS = {
+    "issued", "received",
+    "proforma", "proforma_received",
+    "storno", "storno_received",
+    "contract", "contract_received",
+    "tax_receipt", "tax_receipt_received",
+}
+
+# Kinds where the document is received from an external party — supplier required.
+_NEEDS_SUPPLIER = {
+    "received", "proforma_received", "offer_received",
+    "order_issued", "storno_received", "contract_received",
+    "tax_receipt_received",
+}
+
+# The POST body 'kind' field uses broader categories; storno/contract/tax_receipt
+# are distinguished from plain issued/received only by numeric_row_id.
+_POST_KIND_MAP = {
+    "storno":               "issued",
+    "storno_received":      "received",
+    "contract":             "issued",
+    "contract_received":    "received",
+    "tax_receipt":          "issued",
+    "tax_receipt_received": "issued",
+}
+
+
+def _validate_document_body(data: dict) -> dict:
+    """Validate and normalise a document body before POSTing.
+
+    - Rejects unknown kind values with a clear error.
+    - Checks required fields for the given kind.
+    - Translates logical kinds (storno, contract, tax_receipt) to their API kind.
+
+    Modifies and returns the data dict.
+    """
+    kind = data.get("kind")
+    if not kind:
+        error(
+            "'kind' is required. "
+            f"Valid values: {', '.join(sorted(_VALID_KINDS))}."
+        )
+
+    if kind not in _VALID_KINDS:
+        error(
+            f"Unknown document kind '{kind}'. "
+            f"Valid values: {', '.join(sorted(_VALID_KINDS))}."
+        )
+
+    for field in ("name", "currency", "date_of_issue"):
+        if not data.get(field):
+            error(f"'{field}' is required for all document kinds.")
+
+    if kind in _FINANCIAL_KINDS:
+        for field in ("date_of_tax", "date_of_payment"):
+            if not data.get(field):
+                error(
+                    f"'{field}' is required for '{kind}' documents "
+                    "(undocumented API requirement for financial document types)."
+                )
+
+    if kind in _NEEDS_SUPPLIER:
+        if not data.get("from_company_id"):
+            error(
+                f"'from_company_id' (supplier) is required for '{kind}' documents. "
+                "Use 'caflou company list' to find the supplier's ID."
+            )
+
+    data["kind"] = _POST_KIND_MAP.get(kind, kind)
+    return data
+
 
 def _list_row(r: dict) -> list:
     return [
@@ -81,6 +166,12 @@ def document_template(
         caflou document template issued > new_invoice.json
         caflou document create --from-file new_invoice.json
     """
+    if kind not in _VALID_KINDS:
+        error(
+            f"Unknown document kind '{kind}'. "
+            f"Valid values: {', '.join(sorted(_VALID_KINDS))}."
+        )
+
     client = get_client(account)
 
     # Find a matching numeric_row from cache
@@ -109,33 +200,9 @@ def document_template(
         if vat_records:
             vat_rate_id = vat_records[0]["id"]
 
-    # Kinds where date_of_tax + date_of_payment are required (confirmed by API testing)
-    _financial_kinds = {
-        "issued", "received",
-        "proforma", "proforma_received",
-        "storno", "storno_received",
-        "contract", "contract_received",
-        "tax_receipt", "tax_receipt_received",
-    }
-    is_financial = kind in _financial_kinds
-
-    # Received documents from an external party require from_company_id (the supplier)
-    _needs_supplier = {"received", "proforma_received", "offer_received",
-                       "order_issued", "storno_received", "contract_received",
-                       "tax_receipt_received"}
-    needs_supplier = kind in _needs_supplier
-
-    # The POST body 'kind' field uses broader categories; storno/contract/tax_receipt
-    # documents are distinguished by numeric_row_id, not by a unique kind string.
-    _post_kind_map = {
-        "storno":              "issued",
-        "storno_received":     "received",
-        "contract":            "issued",
-        "contract_received":   "received",
-        "tax_receipt":         "issued",
-        "tax_receipt_received":"issued",
-    }
-    post_kind = _post_kind_map.get(kind, kind)
+    is_financial = kind in _FINANCIAL_KINDS
+    needs_supplier = kind in _NEEDS_SUPPLIER
+    post_kind = _POST_KIND_MAP.get(kind, kind)
 
     extra_notes = []
     if is_financial:
@@ -200,6 +267,7 @@ def document_create(
     """
     data = read_json_input(from_file)
     data.pop("_comment", None)
+    data = _validate_document_body(data)
 
     client = get_client(account)
     result = client.post("invoices", data)

@@ -1,7 +1,10 @@
 import json
+import pytest
+import typer
 from unittest.mock import patch
 
 from caflou_cli.main import app
+from caflou_cli.commands.document import _validate_document_body
 from tests.fake_client import FakeClient
 
 
@@ -80,14 +83,139 @@ def test_template_has_no_comment_key_in_parsed_output(runner):
     assert "_comment" in skeleton
 
 
+# ── _validate_document_body unit tests ───────────────────────────────────────
+
+_ISSUED = {
+    "name": "Test", "kind": "issued", "currency": "CZK",
+    "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+}
+
+def test_validate_passthrough_kind_unchanged():
+    data = _validate_document_body({**_ISSUED})
+    assert data["kind"] == "issued"
+
+
+def test_validate_storno_translates_to_issued():
+    data = _validate_document_body({**_ISSUED, "kind": "storno"})
+    assert data["kind"] == "issued"
+
+
+def test_validate_contract_received_translates_to_received():
+    body = {
+        "name": "C", "kind": "contract_received", "currency": "CZK",
+        "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+        "from_company_id": 42,
+    }
+    data = _validate_document_body(body)
+    assert data["kind"] == "received"
+
+
+def test_validate_missing_kind_errors():
+    with pytest.raises(typer.Exit):
+        _validate_document_body({"name": "X", "currency": "CZK", "date_of_issue": "2026-06-27"})
+
+
+def test_validate_unknown_kind_errors():
+    with pytest.raises(typer.Exit):
+        _validate_document_body({**_ISSUED, "kind": "nonsense"})
+
+
+def test_validate_missing_name_errors():
+    with pytest.raises(typer.Exit):
+        _validate_document_body({**_ISSUED, "name": ""})
+
+
+def test_validate_missing_currency_errors():
+    with pytest.raises(typer.Exit):
+        _validate_document_body({**_ISSUED, "currency": None})
+
+
+def test_validate_missing_date_of_issue_errors():
+    with pytest.raises(typer.Exit):
+        _validate_document_body({**_ISSUED, "date_of_issue": ""})
+
+
+def test_validate_financial_kind_missing_date_of_tax_errors():
+    body = {**_ISSUED}
+    del body["date_of_tax"]
+    with pytest.raises(typer.Exit):
+        _validate_document_body(body)
+
+
+def test_validate_financial_kind_missing_date_of_payment_errors():
+    body = {**_ISSUED}
+    del body["date_of_payment"]
+    with pytest.raises(typer.Exit):
+        _validate_document_body(body)
+
+
+def test_validate_non_financial_kind_does_not_require_date_fields():
+    body = {"name": "O", "kind": "offer", "currency": "CZK", "date_of_issue": "2026-06-27"}
+    data = _validate_document_body(body)  # must not raise
+    assert data["kind"] == "offer"
+
+
+def test_validate_needs_supplier_kind_missing_from_company_id_errors():
+    body = {
+        "name": "R", "kind": "received", "currency": "CZK",
+        "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+    }
+    with pytest.raises(typer.Exit):
+        _validate_document_body(body)
+
+
+def test_validate_needs_supplier_kind_with_from_company_id_ok():
+    body = {
+        "name": "R", "kind": "received", "currency": "CZK",
+        "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+        "from_company_id": 99,
+    }
+    data = _validate_document_body(body)
+    assert data["kind"] == "received"
+
+
 # ── create ────────────────────────────────────────────────────────────────────
 
 def test_document_create_strips_comment(runner):
     fake = FakeClient()
-    body = {"_comment": "ignore", "name": "Test Invoice", "kind": "issued", "currency": "CZK", "date_of_issue": "2026-06-27"}
+    body = {
+        "_comment": "ignore", "name": "Test Invoice", "kind": "issued", "currency": "CZK",
+        "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+    }
     with patch("caflou_cli.commands.document.get_client", return_value=fake):
         result = runner.invoke(app, ["document", "create", "--from-file", "-"], input=json.dumps(body))
     assert result.exit_code == 0
     post_call = next(c for c in fake.calls if c["method"] == "POST")
     assert "_comment" not in post_call["data"]
     assert post_call["path"] == "invoices"
+
+
+def test_document_create_translates_storno_kind(runner):
+    fake = FakeClient()
+    body = {
+        "name": "Credit note", "kind": "storno", "currency": "CZK",
+        "date_of_issue": "2026-06-27", "date_of_tax": "2026-06-27", "date_of_payment": "2026-06-27",
+    }
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        result = runner.invoke(app, ["document", "create", "--from-file", "-"], input=json.dumps(body))
+    assert result.exit_code == 0
+    post_call = next(c for c in fake.calls if c["method"] == "POST")
+    assert post_call["data"]["kind"] == "issued"
+
+
+def test_document_create_unknown_kind_errors(runner):
+    fake = FakeClient()
+    body = {"name": "X", "kind": "bogus", "currency": "CZK", "date_of_issue": "2026-06-27"}
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        result = runner.invoke(app, ["document", "create", "--from-file", "-"], input=json.dumps(body))
+    assert result.exit_code != 0
+    assert not any(c["method"] == "POST" for c in fake.calls)
+
+
+def test_document_create_financial_kind_missing_date_errors(runner):
+    fake = FakeClient()
+    body = {"name": "X", "kind": "issued", "currency": "CZK", "date_of_issue": "2026-06-27"}
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        result = runner.invoke(app, ["document", "create", "--from-file", "-"], input=json.dumps(body))
+    assert result.exit_code != 0
+    assert not any(c["method"] == "POST" for c in fake.calls)
