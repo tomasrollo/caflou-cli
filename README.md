@@ -109,7 +109,24 @@ caflou project get <id>
 ```bash
 caflou task list
 caflou task get <id>
+
+# Create
+caflou task template                      # print a JSON skeleton for a new task
+caflou task create --from-file task.json
+caflou task create --from-file -          # read JSON from stdin
+
+# Update (flags for common fields, --from-file for anything else)
+caflou task update <id> --name "New name"
+caflou task update <id> --status-id <id> --progress 50
+caflou task update <id> --finished
+caflou task update <id> --from-file changes.json
+
+# Delete (prompts for confirmation)
+caflou task delete <id>
+caflou task delete <id> --force
 ```
+
+**Template fields:** `name` (required), `project_id`, `company_id`, `user_id` (primary assignee), `task_type_id`, `task_status_id`, `task_priority_id`, `description`, `start_time`, `end_time`, `planned_hours`, `currency`. The template pre-fills type/status/priority IDs from the local master data cache.
 
 ### `timesheet` — Timesheet entries
 
