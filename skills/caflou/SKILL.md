@@ -1,6 +1,6 @@
 ---
 name: caflou
-description: Interact with the Caflou project management platform via caflou-cli, a Python CLI tool installed in the ~/Documents/projects/caflou_ai project. Use when the user wants to read or write Caflou data — tasks, projects, companies, contacts, documents (invoices), timesheets, transfers, comments — or when they ask to look something up, create a record, or automate something in Caflou.
+description: Interact with the Caflou project management platform via caflou-cli, a Python CLI tool. When the user wants to read or write Caflou data — tasks, projects, companies, contacts, documents (invoices), timesheets, transfers, comments — or when they ask to look something up, create a record, or automate something in Caflou.
 ---
 
 # Caflou CLI
