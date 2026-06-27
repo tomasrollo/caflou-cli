@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
+from caflou_cli.cache import load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
@@ -106,15 +107,26 @@ def contact_template(
         caflou contact template > new_contact.json
         caflou contact create --from-file new_contact.json
     """
+    client = get_client(account)
+
+    contact_type_id = None
+    ct_cache = load_cache(client.account_id, "contact_types")
+    if ct_cache:
+        recs = ct_cache.get("records", [])
+        if recs:
+            contact_type_id = recs[0]["id"]
+
     skeleton = {
         "_comment": (
             "Remove this _comment key before submitting. "
             "Only 'name' is required. "
             "company_id links the contact to a company (use 'caflou company list' to find IDs). "
-            "contact_type_id is optional — Caflou does not expose contact types via the API."
+            "See 'caflou masterdata list contact_types' for valid contact_type_id values "
+            "(populated by syncing contacts: 'caflou masterdata sync contact_types')."
         ),
         "name": "New contact",
         "company_id": None,
+        "contact_type_id": contact_type_id,
         "email": "",
         "phone": "",
         "mobile": "",

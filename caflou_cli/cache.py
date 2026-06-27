@@ -63,6 +63,7 @@ CATEGORY_B: dict[str, dict] = {
     "work_types":          {"source": "timesheets", "id_field": "work_type_id",        "name_field": "work_type_name"},
     "rate_types":          {"source": "timesheets", "id_field": "rate_type_id",        "name_field": "rate_type_name"},
     "transfer_categories": {"source": "transfers",  "id_field": "category_id",         "name_field": "category_name"},
+    "contact_types":       {"source": "contacts",   "id_field": "contact_type_id",     "name_field": "contact_type_name"},
 }
 
 ALL_TYPES = set(CATEGORY_A) | set(CATEGORY_B)
@@ -94,6 +95,9 @@ PASSIVE_ENRICHMENT: dict[str, list[tuple[str, str, str]]] = {
     ],
     "transfers": [
         ("category_id", "category_name", "transfer_categories"),
+    ],
+    "contacts": [
+        ("contact_type_id", "contact_type_name", "contact_types"),
     ],
 }
 

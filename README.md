@@ -94,7 +94,7 @@ caflou contact delete <id> --force
 
 **Template fields:** `name` (required), `company_id` (required for create — the API only supports contacts within a company context), `email`, `phone`, `mobile`, `website`, `street`, `city`, `zip`, `country`, `facebook`, `linkedin`, `note`.
 
-**Note:** The Caflou API does not expose contact types (`contact_type_id`) as a master data endpoint — these can only be set if you already know the ID.
+**Note:** Contact types are a Category B master data type — harvested from existing contact records. Run `caflou masterdata sync contact_types` to populate the cache, then `caflou masterdata list contact_types` to see valid IDs.
 
 ### `document` — Documents
 

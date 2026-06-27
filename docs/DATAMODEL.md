@@ -100,6 +100,7 @@ The CLI discovers and caches them by scanning entity records — either passivel
 | `work_types` | timesheets | `work_type_id` | `work_type_name` |
 | `rate_types` | timesheets | `rate_type_id` | `rate_type_name` |
 | `transfer_categories` | transfers | `category_id` | `category_name` |
+| `contact_types` | contacts | `contact_type_id` | `contact_type_name` |
 
 ---
 
