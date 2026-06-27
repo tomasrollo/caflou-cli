@@ -4,6 +4,7 @@ import sys
 from collections.abc import Callable
 from typing import Optional
 
+from caflou_cli.api import ClientProtocol
 from caflou_cli.cache import enrich_from_entity
 from caflou_cli.output import error, print_json, print_pagination, print_table
 
@@ -13,7 +14,7 @@ def run_list(
     headers: list[str],
     row_fn: Callable[[dict], list],
     *,
-    client,
+    client: ClientProtocol,
     json_output: bool,
     page: int,
     per: int,

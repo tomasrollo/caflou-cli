@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Protocol
 
 import httpx
 
@@ -7,6 +7,19 @@ from caflou_cli.config import load_config, resolve_account_id
 from caflou_cli.output import error
 
 BASE_URL = "https://app.caflou.com"
+
+
+class ClientProtocol(Protocol):
+    """Structural interface satisfied by CaflouClient and test fakes alike."""
+
+    @property
+    def account_id(self) -> str: ...
+    def get(self, path: str, params: Optional[dict] = None) -> Any: ...
+    def list(self, resource: str, page: int = 1, per: int = 20, filters: Optional[dict] = None) -> dict: ...
+    def list_all(self, resource: str, filters: Optional[dict] = None) -> list: ...
+    def post(self, path: str, data: dict) -> Any: ...
+    def patch(self, path: str, data: dict) -> Any: ...
+    def delete(self, path: str) -> None: ...
 
 
 class CaflouClient:
