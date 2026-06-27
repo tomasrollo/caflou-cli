@@ -102,7 +102,24 @@ caflou document delete <id> --force      # skip confirmation
 ```bash
 caflou project list
 caflou project get <id>
+
+# Create
+caflou project template                      # print a JSON skeleton for a new project
+caflou project create --from-file project.json
+caflou project create --from-file -          # read JSON from stdin
+
+# Update
+caflou project update <id> --name "New name"
+caflou project update <id> --status-id <id> --finished
+caflou project update <id> --progress 75
+caflou project update <id> --from-file changes.json
+
+# Delete (prompts for confirmation)
+caflou project delete <id>
+caflou project delete <id> --force
 ```
+
+**Template fields:** `name` (required), `company_id`, `user_id` (owner), `user_ids` (team members), `project_type_id`, `project_status_id`, `project_priority_id`, `start_date`, `end_date`, `currency`, `planned_hours`, `description`. The template pre-fills type/status/priority IDs from the local master data cache.
 
 ### `task` — Tasks
 
