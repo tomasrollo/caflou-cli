@@ -92,7 +92,9 @@ caflou document delete <id> --force      # skip confirmation
 
 **Notes:**
 - The template pre-fills `numeric_row_id` and `vat_rate_id` from the local master data cache. Run `caflou masterdata sync` first if the cache is empty.
-- Required fields not documented in the API spec: `date_of_tax`, `date_of_payment`.
+- `date_of_tax` and `date_of_payment` are required by the API for financial document kinds (invoices, proformas, credit notes, tax receipts) but not for non-financial ones (delivery notes, offers, orders). The template includes them automatically when needed.
+- Received documents (`received`, `proforma_received`, `offer_received`, `order_issued`, `storno_received`, `contract_received`, `tax_receipt_received`) require a `from_company_id` (the supplier). The template includes a `null` placeholder for these kinds.
+- **The `kind` field in the JSON body does not always match the kind name you pass to `template`.** The Caflou API uses a small set of broader `kind` values (`issued`, `received`, `proforma`, etc.) and relies on `numeric_row_id` to distinguish specific document types within each category. For example, a `storno` document must be submitted with `"kind": "issued"`, and a `contract_received` with `"kind": "received"`. The template command sets the correct `kind` automatically and explains the mapping in the `_comment` field — remove `_comment` before calling `create`.
 - `update` only supports the three fields the API exposes via PATCH: `paid`, `payment_date`, and `invoice_items_attributes`.
 
 ### `project` — Projects

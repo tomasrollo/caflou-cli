@@ -148,20 +148,59 @@ def document_template(
         if vat_records:
             vat_rate_id = vat_records[0]["id"]
 
+    # Kinds where date_of_tax + date_of_payment are required (confirmed by API testing)
+    _financial_kinds = {
+        "issued", "received",
+        "proforma", "proforma_received",
+        "storno", "storno_received",
+        "contract", "contract_received",
+        "tax_receipt", "tax_receipt_received",
+    }
+    is_financial = kind in _financial_kinds
+
+    # Received documents from an external party require from_company_id (the supplier)
+    _needs_supplier = {"received", "proforma_received", "offer_received",
+                       "order_issued", "storno_received", "contract_received",
+                       "tax_receipt_received"}
+    needs_supplier = kind in _needs_supplier
+
+    # The POST body 'kind' field uses broader categories; storno/contract/tax_receipt
+    # documents are distinguished by numeric_row_id, not by a unique kind string.
+    _post_kind_map = {
+        "storno":              "issued",
+        "storno_received":     "received",
+        "contract":            "issued",
+        "contract_received":   "received",
+        "tax_receipt":         "issued",
+        "tax_receipt_received":"issued",
+    }
+    post_kind = _post_kind_map.get(kind, kind)
+
+    extra_notes = []
+    if is_financial:
+        extra_notes.append("date_of_tax and date_of_payment are required by the API (undocumented)")
+    if needs_supplier:
+        extra_notes.append("from_company_id (supplier) is required for this document type")
+    if post_kind != kind:
+        extra_notes.append(
+            f"kind is set to '{post_kind}' (the API's broader category); "
+            f"the specific document type is determined by numeric_row_id"
+        )
+
     skeleton = {
         "_comment": (
             "Remove this _comment key before submitting. "
             f"numeric_row: {numeric_row_name or kind}. "
-            "Required fields not in the API spec: date_of_tax, date_of_payment. "
-            "See 'caflou masterdata list vat_rates' for VAT rate IDs, "
+            + ("; ".join(extra_notes) + ". " if extra_notes else "")
+            + "See 'caflou masterdata list vat_rates' for VAT rate IDs, "
             "'caflou masterdata list numeric_rows' for series IDs."
         ),
         "name": f"New {kind} document",
-        "kind": kind,
+        "kind": post_kind,
         "currency": "CZK",
         "date_of_issue": str(date.today()),
-        "date_of_tax": str(date.today()),
-        "date_of_payment": str(date.today()),
+        **({"date_of_tax": str(date.today()), "date_of_payment": str(date.today())} if is_financial else {}),
+        **({"from_company_id": None} if needs_supplier else {}),
         "numeric_row_id": numeric_row_id,
         "to_company_id": None,
         "note": "",
