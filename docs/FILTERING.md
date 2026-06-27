@@ -18,8 +18,9 @@ Filter parameters are passed with `--filter key=value` (repeatable). The CLI tra
 
 | Filter | Status | Description |
 |--------|--------|-------------|
-| `search=text` | confirmed | Full-text search |
+| `search=text` | confirmed | Full-text search — works for document numbers (e.g. `search=DD15260067`) |
 | `search_not=text` | from web URL | Exclude records matching text |
+| `number=text` | not working | Filter by document number — tested, silently ignored (use `search=` instead) |
 
 ### Date ranges
 
