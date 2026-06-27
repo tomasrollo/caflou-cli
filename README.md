@@ -77,7 +77,24 @@ caflou company delete <id> --force
 ```bash
 caflou contact list
 caflou contact get <id>
+
+# Create
+caflou contact template                      # print a JSON skeleton for a new contact
+caflou contact create --from-file contact.json
+caflou contact create --from-file -          # read JSON from stdin
+
+# Update
+caflou contact update <id> --name "New name"
+caflou contact update <id> --from-file changes.json
+
+# Delete (prompts for confirmation)
+caflou contact delete <id>
+caflou contact delete <id> --force
 ```
+
+**Template fields:** `name` (required), `company_id` (required for create — the API only supports contacts within a company context), `email`, `phone`, `mobile`, `website`, `street`, `city`, `zip`, `country`, `facebook`, `linkedin`, `note`.
+
+**Note:** The Caflou API does not expose contact types (`contact_type_id`) as a master data endpoint — these can only be set if you already know the ID.
 
 ### `document` — Documents
 
