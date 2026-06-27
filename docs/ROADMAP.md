@@ -11,18 +11,6 @@ See [README.md](../README.md) for full usage.
 
 ---
 
-## Planned: Write operations for remaining transactional objects
-
-The following command groups have `create`, `update`, and `delete` stubs that currently print "not implemented". The Caflou API supports full CRUD for all of them.
-
-| Command group | Create | Update | Delete |
-|---------------|--------|--------|--------|
-| `timesheet`   | POST /timesheets | PATCH /timesheets/{id} | DELETE /timesheets/{id} |
-
-**Notes from document implementation applicable to others:**
-- The API spec's `required` field list is incomplete — validate against actual API errors during implementation.
-- The PATCH endpoint for documents only exposes 3 fields (`paid`, `payment_date`, `invoice_items_attributes`); other entities may similarly have restricted update surfaces.
-
 ---
 
 ## Planned: Write operations for Category A master data

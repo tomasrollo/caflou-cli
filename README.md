@@ -183,7 +183,28 @@ caflou task delete <id> --force
 ```bash
 caflou timesheet list
 caflou timesheet get <id>
+
+# Create
+caflou timesheet template                    # print a JSON skeleton for a new entry
+caflou timesheet create --from-file entry.json
+caflou timesheet create --from-file -        # read JSON from stdin
+
+# Update (API supports: hours and status)
+caflou timesheet update <id> --hours 2.5
+caflou timesheet update <id> --status-id <id>
+caflou timesheet update <id> --from-file changes.json
+
+# Delete (prompts for confirmation)
+caflou timesheet delete <id>
+caflou timesheet delete <id> --force
 ```
+
+**Required fields for create:** `name`, `hours`, `value`, `unit`, `rate_type_id`, `start_time`, `end_time`.
+
+**Notes:**
+- `rate_type_id` is mandatory and must be configured in Caflou before timesheets can be created. Run `caflou masterdata sync rate_types` then `caflou masterdata list rate_types` to find valid IDs.
+- `start_time` and `end_time` are ISO 8601 datetimes (e.g. `2026-06-27T09:00:00+02:00`). `unit` is typically `"hour"`. `value` is the monetary amount (`hours × hourly rate`).
+- Live create/update/delete could not be tested on the KML account as it has no timesheet rate types configured. The implementation follows the same patterns as other entities.
 
 ### `transfer` — Cash flow transfers
 
