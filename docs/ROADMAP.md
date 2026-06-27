@@ -17,7 +17,6 @@ The following command groups have `create`, `update`, and `delete` stubs that cu
 
 | Command group | Create | Update | Delete |
 |---------------|--------|--------|--------|
-| `company`     | POST /companies | PATCH /companies/{id} | DELETE /companies/{id} |
 | `contact`     | POST /contacts | PATCH /contacts/{id} | DELETE /contacts/{id} |
 | `timesheet`   | POST /timesheets | PATCH /timesheets/{id} | DELETE /timesheets/{id} |
 

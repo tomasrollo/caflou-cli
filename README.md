@@ -54,7 +54,23 @@ caflou auth whoami          # show token status and account list
 ```bash
 caflou company list         # list companies (paginated)
 caflou company get <id>     # get full company details
+
+# Create
+caflou company template                      # print a JSON skeleton for a new company
+caflou company create --from-file company.json
+caflou company create --from-file -          # read JSON from stdin
+
+# Update
+caflou company update <id> --name "New name"
+caflou company update <id> --status-id <id>
+caflou company update <id> --from-file changes.json
+
+# Delete (prompts for confirmation)
+caflou company delete <id>
+caflou company delete <id> --force
 ```
+
+**Template fields:** `name` (required), `kind` (`legal_entity` or `individual`), `company_type_id`, `company_status_id`, `company_phase_id`, `target_user_id` (account manager), `email`, `phone`, `website`, `street`, `city`, `zip`, `country`, `id_num`, `tax_num`, `vat_payer`, `description`.
 
 ### `contact` — Contacts
 
