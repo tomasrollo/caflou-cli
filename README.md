@@ -140,7 +140,29 @@ caflou timesheet get <id>
 ```bash
 caflou transfer list
 caflou transfer get <id>
+
+# Create
+caflou transfer template income           # print a JSON skeleton for an income transfer
+caflou transfer template expense          # skeleton for an expense
+caflou transfer create --from-file transfer.json
+caflou transfer create --from-file -      # read JSON from stdin
+
+# Update (API supports: done status, payment date, real value)
+caflou transfer update <id> --paid --payment-date 2026-06-01
+caflou transfer update <id> --no-paid
+caflou transfer update <id> --real-value 9500.00
+
+# Delete (prompts for confirmation)
+caflou transfer delete <id>
+caflou transfer delete <id> --force
 ```
+
+**Template fields:** `name`, `kind` (`income`/`expense`), `currency`, `date`, `value` (all required), plus `category_id`, `company_id`, `project_id`, `invoice_id`, `payment_date`, `done`, `description`, `reference_number`.
+
+**Notes:**
+- `date` is the accounting/entry date; `payment_date` is when the money actually moved.
+- `invoice_id` links the transfer to a document.
+- `update` supports only the three fields the API exposes via PATCH: `done` (paid status), `payment_date`, and `real_value`. Note: the API spec incorrectly names this field `paid` — the actual field name is `done`.
 
 ### `masterdata` — Local master data cache
 

@@ -21,7 +21,6 @@ The following command groups have `create`, `update`, and `delete` stubs that cu
 | `contact`     | POST /contacts | PATCH /contacts/{id} | DELETE /contacts/{id} |
 | `project`     | POST /projects | PATCH /projects/{id} | DELETE /projects/{id} |
 | `timesheet`   | POST /timesheets | PATCH /timesheets/{id} | DELETE /timesheets/{id} |
-| `transfer`    | POST /transfers | PATCH /transfers/{id} | DELETE /transfers/{id} |
 
 **Notes from document implementation applicable to others:**
 - The API spec's `required` field list is incomplete — validate against actual API errors during implementation.
