@@ -59,3 +59,4 @@ Category B types (task types, project statuses, etc.) have no API endpoints at a
 - **Differential sync hints** — the API has no `updated_since` filter; webhooks (`PATCH /settings/update_webhooks`) are the proper mechanism for receiving change notifications
 - **`--output` format flag** — support CSV in addition to table/JSON
 - **Shell completion** — Typer supports generating completion scripts for bash/zsh/fish
+- **Transactional object cache** — the document list endpoint appears to return full record data (not just summary fields), which would allow building a local cache similar to master data. Before implementing, verify: (a) whether all document kinds return the same attribute set in list vs. get responses, (b) whether other transactional objects (projects, tasks, etc.) behave the same way. If confirmed, a `caflou document sync` command (analogous to `masterdata sync`) could dramatically reduce API calls for read-heavy workflows.
