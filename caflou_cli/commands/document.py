@@ -1,5 +1,4 @@
 import json
-import sys
 from datetime import date
 from typing import Optional
 
@@ -10,6 +9,7 @@ from caflou_cli.cache import enrich_from_entity, load_cache
 from caflou_cli.output import (
     error, not_implemented, print_json, print_pagination, print_record, print_table,
 )
+from caflou_cli.commands._common import parse_filters, read_json_input
 
 app = typer.Typer(help="Document commands (invoices, offers, delivery notes, etc.).")
 
@@ -25,32 +25,6 @@ def _list_row(r: dict) -> list:
     ]
 
 
-def _parse_filters(raw: list[str]) -> dict:
-    filters: dict = {}
-    for f in raw:
-        if "=" not in f:
-            error(f"Invalid filter '{f}'. Use key=value format.")
-        k, v = f.split("=", 1)
-        filters[k] = v
-    return filters
-
-
-def _read_json_input(from_file: Optional[str]) -> dict:
-    """Read JSON from a file path, '-' for stdin, or error."""
-    if not from_file:
-        error("Provide input via --from-file <path> or --from-file - (stdin).")
-    try:
-        if from_file == "-":
-            raw = sys.stdin.read()
-        else:
-            raw = open(from_file).read()
-        return json.loads(raw)
-    except FileNotFoundError:
-        error(f"File not found: {from_file}")
-    except json.JSONDecodeError as e:
-        error(f"Invalid JSON: {e}")
-
-
 # ── read commands ─────────────────────────────────────────────────────────────
 
 @app.command("list")
@@ -64,7 +38,7 @@ def document_list(
 ) -> None:
     """List documents (invoices, offers, delivery notes, etc.)."""
     client = get_client(account)
-    filters = _parse_filters(filter)
+    filters = parse_filters(filter)
 
     if all_pages:
         results = client.list_all("invoices", filters=filters)
@@ -237,7 +211,7 @@ def document_create(
         caflou document template issued > doc.json
         caflou document create --from-file doc.json
     """
-    data = _read_json_input(from_file)
+    data = read_json_input(from_file)
     data.pop("_comment", None)
 
     client = get_client(account)
@@ -285,7 +259,7 @@ def document_update(
         if paid is None:
             payload["paid"] = True
     if from_file is not None:
-        items_data = _read_json_input(from_file)
+        items_data = read_json_input(from_file)
         if isinstance(items_data, list):
             payload["invoice_items_attributes"] = items_data
         elif isinstance(items_data, dict) and "invoice_items_attributes" in items_data:

@@ -1,5 +1,4 @@
 import json
-import sys
 from typing import Optional
 
 import typer
@@ -9,6 +8,7 @@ from caflou_cli.cache import enrich_from_entity, load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
+from caflou_cli.commands._common import parse_filters, read_json_input
 
 app = typer.Typer(help="Contact management commands.")
 
@@ -24,31 +24,6 @@ def _list_row(r: dict) -> list:
     ]
 
 
-def _parse_filters(raw: list[str]) -> dict:
-    filters: dict = {}
-    for f in raw:
-        if "=" not in f:
-            error(f"Invalid filter '{f}'. Use key=value format.")
-        k, v = f.split("=", 1)
-        filters[k] = v
-    return filters
-
-
-def _read_json_input(from_file: Optional[str]) -> dict:
-    if not from_file:
-        error("Provide input via --from-file <path> or --from-file - (stdin).")
-    try:
-        if from_file == "-":
-            raw = sys.stdin.read()
-        else:
-            raw = open(from_file).read()
-        return json.loads(raw)
-    except FileNotFoundError:
-        error(f"File not found: {from_file}")
-    except json.JSONDecodeError as e:
-        error(f"Invalid JSON: {e}")
-
-
 # ── read commands ─────────────────────────────────────────────────────────────
 
 @app.command("list")
@@ -62,7 +37,7 @@ def contact_list(
 ) -> None:
     """List contacts."""
     client = get_client(account)
-    filters = _parse_filters(filter)
+    filters = parse_filters(filter)
 
     if all_pages:
         results = client.list_all("contacts", filters=filters)
@@ -166,7 +141,7 @@ def contact_create(
         caflou contact template > contact.json
         caflou contact create --from-file contact.json
     """
-    data = _read_json_input(from_file)
+    data = read_json_input(from_file)
     data.pop("_comment", None)
 
     company_id = data.get("company_id")
@@ -203,7 +178,7 @@ def contact_update(
     payload: dict = {}
 
     if from_file is not None:
-        payload.update(_read_json_input(from_file))
+        payload.update(read_json_input(from_file))
         payload.pop("_comment", None)
 
     if name is not None:
