@@ -8,7 +8,7 @@ from caflou_cli.cache import enrich_from_entity, load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
-from caflou_cli.commands._common import parse_filters, read_json_input
+from caflou_cli.commands._common import parse_filters, read_json_input, run_list
 
 app = typer.Typer(help="Contact management commands.")
 
@@ -37,24 +37,11 @@ def contact_list(
 ) -> None:
     """List contacts."""
     client = get_client(account)
-    filters = parse_filters(filter)
-
-    if all_pages:
-        results = client.list_all("contacts", filters=filters)
-        enrich_from_entity(client.account_id, "contacts", results)
-        if json_output:
-            print_json(results)
-        else:
-            print_table(_LIST_HEADERS, [_list_row(r) for r in results])
-    else:
-        data = client.list("contacts", page=page, per=per, filters=filters)
-        results = data.get("results", [])
-        enrich_from_entity(client.account_id, "contacts", results)
-        if json_output:
-            print_json(data)
-        else:
-            print_pagination(data)
-            print_table(_LIST_HEADERS, [_list_row(r) for r in results])
+    run_list(
+        "contacts", _LIST_HEADERS, _list_row,
+        client=client, json_output=json_output, page=page,
+        per=per, all_pages=all_pages, filters=parse_filters(filter),
+    )
 
 
 @app.command("get")
