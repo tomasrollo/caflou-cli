@@ -38,6 +38,7 @@ def task_list(
     project_id: Optional[int] = typer.Option(None, "--project-id", help="Filter to tasks in a project."),
     company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to tasks for a company."),
     active: bool = typer.Option(False, "--active", help="Only active tasks."),
+    closed: bool = typer.Option(False, "--closed", help="Include closed tasks."),
     task_status_id: list[int] = typer.Option([], "--task-status-id", help="Filter by task status ID (repeatable)."),
     task_type_id: list[int] = typer.Option([], "--task-type-id", help="Filter by task type ID (repeatable)."),
     user_id: list[int] = typer.Option([], "--user-id", help="Filter by assignee user ID (repeatable)."),
@@ -58,6 +59,8 @@ def task_list(
         scope = {"scope_type": "company", "scope_id": company_id}
     if active:
         filters["active"] = "true"
+    if closed:
+        filters["closed"] = "true"
     if task_status_id:
         filters["task_status_ids"] = ",".join(str(i) for i in task_status_id)
     if task_type_id:

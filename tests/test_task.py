@@ -67,6 +67,14 @@ def test_task_list_project_id_takes_precedence_over_company_id(runner):
     assert list_call["scope"] == {"scope_type": "project", "scope_id": 7}
 
 
+def test_task_list_closed_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--closed"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("closed") == "true"
+
+
 def test_task_list_active_sets_filter(runner):
     fake = FakeClient().seed("LIST", "tasks", _PAGE)
     with patch("caflou_cli.commands.task.get_client", return_value=fake):
