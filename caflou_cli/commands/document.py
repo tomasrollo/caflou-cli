@@ -127,9 +127,12 @@ def document_list(
         help=f"Filter by document kind: {', '.join(_LIST_KINDS)}."),
     unpaid: bool = typer.Option(False, "--unpaid", help="Only unpaid documents."),
     issued: bool = typer.Option(False, "--issued", help="Only issued documents."),
+    company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to documents for a company."),
+    project_id: Optional[int] = typer.Option(None, "--project-id", help="Filter to documents for a project."),
 ) -> None:
     """List documents (invoices, offers, delivery notes, etc.).
 
+    Use --company-id or --project-id for server-side scoping (scope_type/scope_id).
     Use --kind to filter by document type (confirmed server-side API param).
     Use --unpaid / --issued for confirmed server-side state filters.
     """
@@ -142,12 +145,18 @@ def document_list(
         filters["unpaids"] = "true"
     if issued:
         filters["issueds"] = "true"
-    # kind is a raw param (not filter[]-wrapped); pass via scope dict
-    scope = {"kind": kind} if kind is not None else None
+    # kind, scope_type, scope_id are all raw params (not filter[]-wrapped)
+    scope: dict = {}
+    if company_id is not None:
+        scope.update({"scope_type": "company", "scope_id": company_id})
+    elif project_id is not None:
+        scope.update({"scope_type": "project", "scope_id": project_id})
+    if kind is not None:
+        scope["kind"] = kind
     run_list(
         "invoices", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=filters, scope=scope,
+        per=per, all_pages=all_pages, filters=filters, scope=scope or None,
     )
 
 

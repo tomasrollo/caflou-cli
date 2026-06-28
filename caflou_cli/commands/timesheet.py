@@ -36,13 +36,18 @@ def timesheet_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to timesheets for a company."),
 ) -> None:
-    """List timesheets."""
+    """List timesheets.
+
+    Use --company-id for server-side scoping (scope_type/scope_id).
+    """
     client = get_client(account)
+    scope = {"scope_type": "company", "scope_id": company_id} if company_id is not None else None
     run_list(
         "timesheets", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=parse_filters(filter), scope=scope,
     )
 
 
