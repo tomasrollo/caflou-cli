@@ -34,9 +34,28 @@ def contact_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    company_id: Optional[int] = typer.Option(
+        None, "--company-id",
+        help="List contacts for a specific company (uses the nested API endpoint).",
+    ),
 ) -> None:
-    """List contacts."""
+    """List contacts.
+
+    Use --company-id to list contacts belonging to a specific company — this uses
+    the dedicated nested API endpoint, which is the only reliable way to filter by company.
+    """
     client = get_client(account)
+    if company_id is not None:
+        # The nested endpoint ignores the company_id server-side, so fetch all and post-filter.
+        data = client.get(f"companies/{company_id}/contacts", params={"per": 500})
+        all_results = data if isinstance(data, list) else data.get("results", [])
+        results = [r for r in all_results if r.get("company_id") == company_id]
+        enrich_from_entity(client.account_id, "contacts", results)
+        if json_output:
+            print_json(results)
+        else:
+            print_table(_LIST_HEADERS, [_list_row(r) for r in results])
+        return
     run_list(
         "contacts", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,

@@ -25,8 +25,8 @@ _SUPPLIER = {
     "company_status_name": "Active", "email": "info@bestsupplies.cz",
 }
 _CONTACTS = [
-    {"id": 200, "name": "Jan Novák", "email": "jan.novak@acme.cz", "phone": "+420 777 111"},
-    {"id": 201, "name": "Jana Dvořák", "email": "jana@acme.cz", "phone": ""},
+    {"id": 200, "name": "Jan Novák", "email": "jan.novak@acme.cz", "phone": "+420 777 111", "company_id": 10},
+    {"id": 201, "name": "Jana Dvořák", "email": "jana@acme.cz", "phone": "", "company_id": 10},
 ]
 _TASKS = [
     {

@@ -179,14 +179,15 @@ def _list_results(
 def _contacts_for_company(
     client: ClientProtocol, company_id: int
 ) -> Optional[list]:
+    # The nested endpoint ignores company_id server-side and returns all contacts,
+    # so we post-filter client-side by company_id.
     result = _safe(
-        lambda: client.get(f"companies/{company_id}/contacts", params={"per": 100})
+        lambda: client.get(f"companies/{company_id}/contacts", params={"per": 500})
     )
     if result is None:
         return None
-    if isinstance(result, list):
-        return result
-    return result.get("results", [])
+    records = result if isinstance(result, list) else result.get("results", [])
+    return [r for r in records if r.get("company_id") == company_id]
 
 
 def _fetch_by_ids(
@@ -382,7 +383,7 @@ def company_context(
 
     _print_section(
         "CONTACTS", contacts, _contact_cells, limit,
-        f"caflou contact list --filter company_id={id}",
+        f"caflou contact list --company-id {id} --all",
         headers=_CONTACT_HEADERS,
     )
     _print_section(
