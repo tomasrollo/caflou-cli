@@ -160,26 +160,19 @@ def _list_results(
     resource: str,
     filters: dict,
     post_filter=None,
-    all_pages: bool = False,
+    scope: Optional[dict] = None,
 ) -> Optional[list]:
-    """Fetch results with optional post_filter as a client-side safety net.
+    """Fetch up to 100 results with optional server-side scope and client-side post_filter.
 
-    The Caflou API silently ignores unknown filter keys instead of erroring, so
-    server-side filters are best-effort.  post_filter=(lambda r: r["x"] == v)
-    guarantees correctness regardless of whether the server honours the filter.
-
-    Set all_pages=True when the resource can span many pages and a one-page sample
-    would miss results (e.g. projects for a company across 500+ projects).
+    The Caflou API silently ignores unknown filter[key] params. Where the web app
+    uses scope_type + scope_id to filter reliably, pass scope={"scope_type": ...,
+    "scope_id": ...} — those are sent as raw query params, not filter[]-wrapped.
+    post_filter is a client-side safety net applied after fetching.
     """
-    if all_pages:
-        records = _safe(lambda: client.list_all(resource, filters=filters))
-    else:
-        result = _safe(lambda: client.list(resource, per=100, filters=filters))
-        if result is None:
-            return None
-        records = result.get("results", [])
-    if records is None:
+    result = _safe(lambda: client.list(resource, per=100, filters=filters, scope=scope))
+    if result is None:
         return None
+    records = result.get("results", [])
     if post_filter is not None:
         records = [r for r in records if post_filter(r)]
     return records
@@ -249,8 +242,8 @@ def project_context(
     if tasks:
         enrich_from_entity(client.account_id, "tasks", tasks)
 
-    docs = _list_results(client, "invoices", {"project_id": id},
-                         post_filter=lambda r: r.get("project_id") == id)
+    docs = _list_results(client, "invoices", {},
+                         scope={"scope_type": "project", "scope_id": id})
 
     if json_output:
         # For JSON, fetch all items beyond the display limit
@@ -326,9 +319,8 @@ def contact_context(
         enrich_from_entity(client.account_id, "companies", [company])
 
     projects = (
-        _list_results(client, "projects", {"company_id": company_id},
-                      post_filter=lambda r: r.get("company_id") == company_id,
-                      all_pages=True)
+        _list_results(client, "projects", {},
+                      scope={"scope_type": "company", "scope_id": company_id})
         if company_id else []
     )
 
@@ -370,11 +362,10 @@ def company_context(
     enrich_from_entity(client.account_id, "companies", [company])
 
     contacts = _contacts_for_company(client, id)
-    projects = _list_results(client, "projects", {"company_id": id},
-                             post_filter=lambda r: r.get("company_id") == id,
-                             all_pages=True)
-    docs = _list_results(client, "invoices", {"to_company_id": id},
-                         post_filter=lambda r: r.get("to_company_id") == id)
+    projects = _list_results(client, "projects", {},
+                             scope={"scope_type": "company", "scope_id": id})
+    docs = _list_results(client, "invoices", {},
+                         scope={"scope_type": "company", "scope_id": id})
 
     if json_output:
         print_json({
@@ -450,8 +441,8 @@ def document_context(
     if project:
         enrich_from_entity(client.account_id, "projects", [project])
 
-    transfers = _list_results(client, "transfers", {"invoice_id": id},
-                             post_filter=lambda r: r.get("invoice_id") == id)
+    transfers = _list_results(client, "transfers", {},
+                             scope={"scope_type": "invoice", "scope_id": id})
 
     # Related documents come from the invoice's own ID arrays — authoritative, no filter guessing.
     chain_pairs = _collect_chain_ids(doc)

@@ -15,8 +15,8 @@ class ClientProtocol(Protocol):
     @property
     def account_id(self) -> str: ...
     def get(self, path: str, params: Optional[dict] = None) -> Any: ...
-    def list(self, resource: str, page: int = 1, per: int = 20, filters: Optional[dict] = None) -> dict: ...
-    def list_all(self, resource: str, filters: Optional[dict] = None) -> list: ...
+    def list(self, resource: str, page: int = 1, per: int = 20, filters: Optional[dict] = None, scope: Optional[dict] = None) -> dict: ...
+    def list_all(self, resource: str, filters: Optional[dict] = None, scope: Optional[dict] = None) -> list: ...
     def post(self, path: str, data: dict) -> Any: ...
     def patch(self, path: str, data: dict) -> Any: ...
     def delete(self, path: str) -> None: ...
@@ -61,11 +61,16 @@ class CaflouClient:
         page: int = 1,
         per: int = 20,
         filters: Optional[dict] = None,
+        scope: Optional[dict] = None,
     ) -> dict:
         params: dict = {"page": page, "per": per}
         if filters:
             for k, v in filters.items():
                 params[f"filter[{k}]"] = v
+        if scope:
+            # scope params are passed raw (not filter[]-wrapped), e.g. scope_type + scope_id.
+            # Discovered by inspecting the web app's API calls.
+            params.update(scope)
         return self.get(resource, params)
 
     def post(self, path: str, data: dict) -> Any:
@@ -80,10 +85,15 @@ class CaflouClient:
         url = f"/api/v1/{self._account_id}/{path}"
         self._handle(self._http.delete(url))
 
-    def list_all(self, resource: str, filters: Optional[dict] = None) -> list:
+    def list_all(
+        self,
+        resource: str,
+        filters: Optional[dict] = None,
+        scope: Optional[dict] = None,
+    ) -> list:
         import typer
 
-        first = self.list(resource, page=1, per=100, filters=filters)
+        first = self.list(resource, page=1, per=100, filters=filters, scope=scope)
         total = first.get("total_results", 0)
         if total > 500:
             typer.echo(
@@ -95,7 +105,7 @@ class CaflouClient:
         total_pages = first.get("total_pages", 1)
 
         for page in range(2, total_pages + 1):
-            data = self.list(resource, page=page, per=100, filters=filters)
+            data = self.list(resource, page=page, per=100, filters=filters, scope=scope)
             results.extend(data.get("results", []))
 
         return results

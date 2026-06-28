@@ -40,13 +40,13 @@ class FakeClient:
         self.calls.append({"method": "GET", "path": path, "params": params})
         return self._responses.get(f"GET:{path}", {})
 
-    def list(self, resource: str, page: int = 1, per: int = 20, filters: Optional[dict] = None) -> dict:
-        self.calls.append({"method": "LIST", "resource": resource, "page": page, "per": per, "filters": filters})
+    def list(self, resource: str, page: int = 1, per: int = 20, filters: Optional[dict] = None, scope: Optional[dict] = None) -> dict:
+        self.calls.append({"method": "LIST", "resource": resource, "page": page, "per": per, "filters": filters, "scope": scope})
         default: dict = {"results": [], "total_results": 0, "total_pages": 1}
         return self._responses.get(f"LIST:{resource}", default)
 
-    def list_all(self, resource: str, filters: Optional[dict] = None) -> list:
-        self.calls.append({"method": "LIST_ALL", "resource": resource, "filters": filters})
+    def list_all(self, resource: str, filters: Optional[dict] = None, scope: Optional[dict] = None) -> list:
+        self.calls.append({"method": "LIST_ALL", "resource": resource, "filters": filters, "scope": scope})
         resp = self._responses.get(f"LIST:{resource}", {"results": []})
         if isinstance(resp, dict):
             return resp.get("results", [])
