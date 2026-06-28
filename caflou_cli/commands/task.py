@@ -35,13 +35,43 @@ def task_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    project_id: Optional[int] = typer.Option(None, "--project-id", help="Filter to tasks in a project."),
+    company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to tasks for a company."),
+    active: bool = typer.Option(False, "--active", help="Only active tasks."),
+    task_status_id: list[int] = typer.Option([], "--task-status-id", help="Filter by task status ID (repeatable)."),
+    task_type_id: list[int] = typer.Option([], "--task-type-id", help="Filter by task type ID (repeatable)."),
+    user_id: list[int] = typer.Option([], "--user-id", help="Filter by assignee user ID (repeatable)."),
+    im_involved: bool = typer.Option(False, "--im-involved", help="Only tasks I'm involved in."),
+    assigned: bool = typer.Option(False, "--assigned", help="Only assigned tasks."),
 ) -> None:
-    """List tasks."""
+    """List tasks.
+
+    Use --project-id or --company-id for server-side scoping (scope_type/scope_id).
+    Use --active, --task-status-id, --task-type-id, --user-id for confirmed API filters.
+    """
     client = get_client(account)
+    filters = parse_filters(filter)
+    scope = None
+    if project_id is not None:
+        scope = {"scope_type": "project", "scope_id": project_id}
+    elif company_id is not None:
+        scope = {"scope_type": "company", "scope_id": company_id}
+    if active:
+        filters["active"] = "true"
+    if task_status_id:
+        filters["task_status_ids"] = ",".join(str(i) for i in task_status_id)
+    if task_type_id:
+        filters["task_type_ids"] = ",".join(str(i) for i in task_type_id)
+    if user_id:
+        filters["target_user_ids"] = ",".join(str(i) for i in user_id)
+    if im_involved:
+        filters["im_involved"] = "true"
+    if assigned:
+        filters["assigned"] = "true"
     run_list(
         "tasks", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=filters, scope=scope,
     )
 
 

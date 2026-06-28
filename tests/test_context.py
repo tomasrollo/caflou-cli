@@ -87,17 +87,14 @@ def _list_page(results):
 # ── project context ───────────────────────────────────────────────────────────
 
 def _project_fake_with_tasks(task_list):
-    """Build a FakeClient for project context with individual task and company GETs seeded."""
-    project = {**_PROJECT, "task_ids": [t["id"] for t in task_list]}
-    fake = (FakeClient(_ACCOUNT)
-        .seed("GET", "projects/1", project)
+    """Build a FakeClient for project context with scope-based task list and company GETs seeded."""
+    return (FakeClient(_ACCOUNT)
+        .seed("GET", "projects/1", _PROJECT)
         .seed("GET", "companies/10", _COMPANY)
         .seed("GET", "companies/20", _SUPPLIER)
+        .seed("LIST", "tasks", _list_page(task_list))
         .seed("LIST", "invoices", _list_page(_DOCUMENTS))
     )
-    for t in task_list:
-        fake.seed("GET", f"tasks/{t['id']}", t)
-    return fake
 
 
 def test_project_context_header(runner, tmp_path):
@@ -179,8 +176,7 @@ def test_project_context_failed_section(runner, tmp_path):
     fake.seed("GET", "projects/1", _PROJECT)
     fake.seed("GET", "companies/10", _COMPANY)
     fake.seed("GET", "companies/20", _SUPPLIER)
-    for t in _TASKS:
-        fake.seed("GET", f"tasks/{t['id']}", t)
+    fake.seed("LIST", "tasks", _list_page(_TASKS))
 
     with patch("caflou_cli.commands.project.get_client", return_value=fake):
         result = runner.invoke(app, ["project", "context", "1"])
@@ -227,35 +223,38 @@ def test_contact_context_json(runner, tmp_path):
 
 # ── company context ───────────────────────────────────────────────────────────
 
-def test_company_context_header(runner, tmp_path):
-    fake = (FakeClient(_ACCOUNT)
+def _company_fake():
+    """Build a FakeClient for company context."""
+    return (FakeClient(_ACCOUNT)
         .seed("GET", "companies/10", _COMPANY)
-        .seed("GET", "companies/10/contacts", _CONTACTS)
+        .seed("LIST", "contacts", _list_page(_CONTACTS))
+        .seed("LIST", "tasks", _list_page([]))
         .seed("LIST", "projects", _list_page([_PROJECT]))
         .seed("LIST", "invoices", _list_page(_DOCUMENTS))
     )
+
+
+def test_company_context_header(runner, tmp_path):
+    fake = _company_fake()
     with patch("caflou_cli.commands.company.get_client", return_value=fake):
         result = runner.invoke(app, ["company", "context", "10"])
     assert result.exit_code == 0
     assert "COMPANY" in result.stdout
     assert "Acme s.r.o." in result.stdout
     assert "CONTACTS (2)" in result.stdout
+    assert "TASKS (0)" in result.stdout
     assert "PROJECTS (1)" in result.stdout
     assert "DOCUMENTS (1)" in result.stdout
 
 
 def test_company_context_json(runner, tmp_path):
-    fake = (FakeClient(_ACCOUNT)
-        .seed("GET", "companies/10", _COMPANY)
-        .seed("GET", "companies/10/contacts", _CONTACTS)
-        .seed("LIST", "projects", _list_page([_PROJECT]))
-        .seed("LIST", "invoices", _list_page(_DOCUMENTS))
-    )
+    fake = _company_fake()
     with patch("caflou_cli.commands.company.get_client", return_value=fake):
         result = runner.invoke(app, ["company", "context", "10", "--json"])
     data = json.loads(result.stdout)
     assert data["company"]["id"] == 10
     assert len(data["contacts"]) == 2
+    assert len(data["tasks"]) == 0
     assert len(data["projects"]) == 1
     assert len(data["documents"]) == 1
 

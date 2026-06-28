@@ -181,15 +181,13 @@ def _list_results(
 def _contacts_for_company(
     client: ClientProtocol, company_id: int
 ) -> Optional[list]:
-    # The nested endpoint ignores company_id server-side and returns all contacts,
-    # so we post-filter client-side by company_id.
     result = _safe(
-        lambda: client.get(f"companies/{company_id}/contacts", params={"per": 500})
+        lambda: client.list("contacts", per=100,
+                            scope={"scope_type": "company", "scope_id": company_id})
     )
     if result is None:
         return None
-    records = result if isinstance(result, list) else result.get("results", [])
-    return [r for r in records if r.get("company_id") == company_id]
+    return result.get("results", [])
 
 
 def _fetch_by_ids(
@@ -236,27 +234,34 @@ def project_context(
     if companies:
         enrich_from_entity(client.account_id, "companies", companies)
 
-    # Tasks: use task_ids from the project response — authoritative, no filter guessing.
-    task_ids = project.get("task_ids") or []
-    tasks, total_tasks = _fetch_by_ids(client, "tasks", task_ids, limit)
-    if tasks:
-        enrich_from_entity(client.account_id, "tasks", tasks)
+    # Tasks via scope — single list call replaces N individual GETs over task_ids array.
+    tasks_raw = _safe(lambda: client.list("tasks", per=100,
+                                          scope={"scope_type": "project", "scope_id": id}))
+    if tasks_raw is None:
+        tasks: Optional[list] = None
+        total_tasks = 0
+    else:
+        tasks = tasks_raw.get("results", [])
+        total_tasks = tasks_raw.get("total_results", len(tasks))
+        if tasks:
+            enrich_from_entity(client.account_id, "tasks", tasks)
 
     docs = _list_results(client, "invoices", {},
                          scope={"scope_type": "project", "scope_id": id})
 
     if json_output:
-        # For JSON, fetch all items beyond the display limit
+        # For JSON, fetch full company list if display was capped
         if limit is not None and total_companies > len(companies):
             extra, _ = _fetch_by_ids(client, "companies", company_id_list[len(companies):], limit=None)
             companies = companies + extra
-        if limit is not None and total_tasks > len(tasks):
-            extra, _ = _fetch_by_ids(client, "tasks", task_ids[len(tasks):], limit=None)
-            tasks = tasks + extra
+        # For JSON, page through tasks if there are more than the first 100
+        if tasks is not None and total_tasks > len(tasks):
+            tasks = _safe(lambda: client.list_all("tasks",
+                                                  scope={"scope_type": "project", "scope_id": id})) or tasks
         print_json({
             "project": project,
             "companies": companies,
-            "tasks": tasks,
+            "tasks": tasks or [],
             "documents": docs or [],
         })
         return
@@ -289,12 +294,15 @@ def project_context(
         if overflow:
             _overflow_hint(overflow, f"caflou project get {id} --json | jq '.company_ids'")
 
-    # Tasks: total_tasks comes from task_ids length, not the fetched slice.
-    _section_header("TASKS", total_tasks)
-    _print_rows([_task_cells(t) for t in tasks], headers=_TASK_HEADERS)
-    overflow = total_tasks - len(tasks)
-    if overflow:
-        _overflow_hint(overflow, f"caflou task list --filter project_id={id}")
+    if tasks is None:
+        _failed("TASKS")
+    else:
+        display_tasks = tasks[:limit] if limit is not None else tasks
+        _section_header("TASKS", total_tasks)
+        _print_rows([_task_cells(t) for t in display_tasks], headers=_TASK_HEADERS)
+        overflow = total_tasks - len(display_tasks)
+        if overflow:
+            _overflow_hint(overflow, f"caflou task list --project-id {id}")
 
     _print_section(
         "DOCUMENTS", docs, _document_cells, limit,
@@ -319,7 +327,7 @@ def contact_context(
         enrich_from_entity(client.account_id, "companies", [company])
 
     projects = (
-        _list_results(client, "projects", {},
+        _list_results(client, "projects", {"active": "true"},
                       scope={"scope_type": "company", "scope_id": company_id})
         if company_id else []
     )
@@ -362,6 +370,8 @@ def company_context(
     enrich_from_entity(client.account_id, "companies", [company])
 
     contacts = _contacts_for_company(client, id)
+    tasks = _list_results(client, "tasks", {"active": "true"},
+                          scope={"scope_type": "company", "scope_id": id})
     projects = _list_results(client, "projects", {},
                              scope={"scope_type": "company", "scope_id": id})
     docs = _list_results(client, "invoices", {},
@@ -371,6 +381,7 @@ def company_context(
         print_json({
             "company": company,
             "contacts": contacts or [],
+            "tasks": tasks or [],
             "projects": projects or [],
             "documents": docs or [],
         })
@@ -389,8 +400,13 @@ def company_context(
         headers=_CONTACT_HEADERS,
     )
     _print_section(
+        "TASKS", tasks, _task_cells, limit,
+        f"caflou task list --company-id {id}",
+        headers=_TASK_HEADERS,
+    )
+    _print_section(
         "PROJECTS", projects, _project_cells, limit,
-        f"caflou project list --filter company_id={id}",
+        f"caflou project list --company-id {id}",
         headers=_PROJECT_HEADERS,
     )
     _print_section(

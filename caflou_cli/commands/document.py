@@ -112,6 +112,9 @@ def _list_row(r: dict) -> list:
 
 # ── read commands ─────────────────────────────────────────────────────────────
 
+_LIST_KINDS = ("offer", "order", "proforma", "invoice", "delivery")
+
+
 @app.command("list")
 def document_list(
     account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
@@ -120,13 +123,31 @@ def document_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    kind: Optional[str] = typer.Option(None, "--kind",
+        help=f"Filter by document kind: {', '.join(_LIST_KINDS)}."),
+    unpaid: bool = typer.Option(False, "--unpaid", help="Only unpaid documents."),
+    issued: bool = typer.Option(False, "--issued", help="Only issued documents."),
 ) -> None:
-    """List documents (invoices, offers, delivery notes, etc.)."""
+    """List documents (invoices, offers, delivery notes, etc.).
+
+    Use --kind to filter by document type (confirmed server-side API param).
+    Use --unpaid / --issued for confirmed server-side state filters.
+    """
+    if kind is not None and kind not in _LIST_KINDS:
+        from caflou_cli.output import error
+        error(f"Unknown kind '{kind}'. Valid values: {', '.join(_LIST_KINDS)}.")
     client = get_client(account)
+    filters = parse_filters(filter)
+    if unpaid:
+        filters["unpaids"] = "true"
+    if issued:
+        filters["issueds"] = "true"
+    # kind is a raw param (not filter[]-wrapped); pass via scope dict
+    scope = {"kind": kind} if kind is not None else None
     run_list(
         "invoices", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=filters, scope=scope,
     )
 
 

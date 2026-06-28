@@ -20,16 +20,17 @@ def run_list(
     per: int,
     all_pages: bool,
     filters: dict,
+    scope: Optional[dict] = None,
 ) -> None:
     if all_pages:
-        results = client.list_all(resource, filters=filters)
+        results = client.list_all(resource, filters=filters, scope=scope)
         enrich_from_entity(client.account_id, resource, results)
         if json_output:
             print_json(results)
         else:
             print_table(headers, [row_fn(r) for r in results])
     else:
-        data = client.list(resource, page=page, per=per, filters=filters)
+        data = client.list(resource, page=page, per=per, filters=filters, scope=scope)
         results = data.get("results", [])
         enrich_from_entity(client.account_id, resource, results)
         if json_output:

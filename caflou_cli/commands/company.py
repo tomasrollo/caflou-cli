@@ -29,13 +29,23 @@ def company_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    active: bool = typer.Option(False, "--active", help="Only active companies."),
+    company_type_id: list[int] = typer.Option([], "--company-type-id", help="Filter by company type ID (repeatable)."),
 ) -> None:
-    """List companies."""
+    """List companies.
+
+    Use --active and --company-type-id for confirmed server-side API filters.
+    """
     client = get_client(account)
+    filters = parse_filters(filter)
+    if active:
+        filters["active"] = "true"
+    if company_type_id:
+        filters["company_type_ids"] = ",".join(str(i) for i in company_type_id)
     run_list(
         "companies", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=filters,
     )
 
 

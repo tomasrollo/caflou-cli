@@ -29,13 +29,35 @@ def project_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to projects for a company."),
+    active: bool = typer.Option(False, "--active", help="Only active projects."),
+    closed: bool = typer.Option(False, "--closed", help="Include closed projects."),
+    project_status_id: list[int] = typer.Option([], "--project-status-id", help="Filter by project status ID (repeatable)."),
+    project_type_id: list[int] = typer.Option([], "--project-type-id", help="Filter by project type ID (repeatable)."),
+    user_id: list[int] = typer.Option([], "--user-id", help="Filter by assigned user ID (repeatable)."),
 ) -> None:
-    """List projects."""
+    """List projects.
+
+    Use --company-id for server-side scoping (scope_type/scope_id).
+    Use --active, --closed, --project-status-id, --project-type-id, --user-id for confirmed API filters.
+    """
     client = get_client(account)
+    filters = parse_filters(filter)
+    scope = {"scope_type": "company", "scope_id": company_id} if company_id is not None else None
+    if active:
+        filters["active"] = "true"
+    if closed:
+        filters["closed"] = "true"
+    if project_status_id:
+        filters["project_status_ids"] = ",".join(str(i) for i in project_status_id)
+    if project_type_id:
+        filters["project_type_ids"] = ",".join(str(i) for i in project_type_id)
+    if user_id:
+        filters["user_ids"] = ",".join(str(i) for i in user_id)
     run_list(
         "projects", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=filters, scope=scope,
     )
 
 

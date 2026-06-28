@@ -45,21 +45,12 @@ def contact_list(
     the dedicated nested API endpoint, which is the only reliable way to filter by company.
     """
     client = get_client(account)
-    if company_id is not None:
-        # The nested endpoint ignores the company_id server-side, so fetch all and post-filter.
-        data = client.get(f"companies/{company_id}/contacts", params={"per": 500})
-        all_results = data if isinstance(data, list) else data.get("results", [])
-        results = [r for r in all_results if r.get("company_id") == company_id]
-        enrich_from_entity(client.account_id, "contacts", results)
-        if json_output:
-            print_json(results)
-        else:
-            print_table(_LIST_HEADERS, [_list_row(r) for r in results])
-        return
+    scope = ({"scope_type": "company", "scope_id": company_id}
+             if company_id is not None else None)
     run_list(
         "contacts", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=parse_filters(filter), scope=scope,
     )
 
 

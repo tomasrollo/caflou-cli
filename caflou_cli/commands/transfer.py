@@ -35,13 +35,23 @@ def transfer_list(
     per: int = typer.Option(100, "--per", help="Items per page (max 100)."),
     all_pages: bool = typer.Option(False, "--all", help="Fetch all pages (warns if >500)."),
     filter: list[str] = typer.Option([], "--filter", help="Filter as key=value (repeatable)."),
+    company_id: Optional[int] = typer.Option(None, "--company-id", help="Filter to transfers for a company."),
+    project_id: Optional[int] = typer.Option(None, "--project-id", help="Filter to transfers for a project."),
 ) -> None:
-    """List transfers (cashflow entries)."""
+    """List transfers (cashflow entries).
+
+    Use --company-id or --project-id for server-side scoping (scope_type/scope_id).
+    """
     client = get_client(account)
+    scope = None
+    if company_id is not None:
+        scope = {"scope_type": "company", "scope_id": company_id}
+    elif project_id is not None:
+        scope = {"scope_type": "project", "scope_id": project_id}
     run_list(
         "transfers", _LIST_HEADERS, _list_row,
         client=client, json_output=json_output, page=page,
-        per=per, all_pages=all_pages, filters=parse_filters(filter),
+        per=per, all_pages=all_pages, filters=parse_filters(filter), scope=scope,
     )
 
 
