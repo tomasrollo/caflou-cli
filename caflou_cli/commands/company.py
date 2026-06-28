@@ -55,6 +55,19 @@ def company_get(
         print_record(data)
 
 
+@app.command("context")
+def company_context_cmd(
+    id: int = typer.Argument(..., help="Company ID."),
+    all_: bool = typer.Option(False, "--all", help="Show all items, no per-section cap."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON (includes all items)."),
+) -> None:
+    """Show a context overview of a company: contacts, projects, documents."""
+    from caflou_cli.commands._context import _DEFAULT_LIMIT, company_context
+    client = get_client(account)
+    company_context(id, client, limit=None if all_ else _DEFAULT_LIMIT, json_output=json_output)
+
+
 @app.command("find")
 def company_find(
     name: str = typer.Argument(..., help="Name to search for (case-insensitive substring)."),

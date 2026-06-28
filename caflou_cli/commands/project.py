@@ -55,6 +55,19 @@ def project_get(
         print_record(data)
 
 
+@app.command("context")
+def project_context_cmd(
+    id: int = typer.Argument(..., help="Project ID."),
+    all_: bool = typer.Option(False, "--all", help="Show all items, no per-section cap."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON (includes all items)."),
+) -> None:
+    """Show a context overview of a project: company, contacts, tasks, documents."""
+    from caflou_cli.commands._context import _DEFAULT_LIMIT, project_context
+    client = get_client(account)
+    project_context(id, client, limit=None if all_ else _DEFAULT_LIMIT, json_output=json_output)
+
+
 @app.command("find")
 def project_find(
     name: str = typer.Argument(..., help="Name to search for (case-insensitive substring)."),

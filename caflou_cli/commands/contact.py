@@ -117,6 +117,19 @@ def contact_get(
         print_record(data)
 
 
+@app.command("context")
+def contact_context_cmd(
+    id: int = typer.Argument(..., help="Contact ID."),
+    all_: bool = typer.Option(False, "--all", help="Show all items, no per-section cap."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON (includes all items)."),
+) -> None:
+    """Show a context overview of a contact: company, projects."""
+    from caflou_cli.commands._context import _DEFAULT_LIMIT, contact_context
+    client = get_client(account)
+    contact_context(id, client, limit=None if all_ else _DEFAULT_LIMIT, json_output=json_output)
+
+
 # ── template command ──────────────────────────────────────────────────────────
 
 @app.command("template")

@@ -189,6 +189,19 @@ def document_find(
             typer.echo(f"{r['id']}\t{r['name']}")
 
 
+@app.command("context")
+def document_context_cmd(
+    id: int = typer.Argument(..., help="Document ID."),
+    all_: bool = typer.Option(False, "--all", help="Show all items, no per-section cap."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON (includes all items)."),
+) -> None:
+    """Show a context overview of a document: buyer company, project, payments."""
+    from caflou_cli.commands._context import _DEFAULT_LIMIT, document_context
+    client = get_client(account)
+    document_context(id, client, limit=None if all_ else _DEFAULT_LIMIT, json_output=json_output)
+
+
 # ── template command ──────────────────────────────────────────────────────────
 
 @app.command("template")
