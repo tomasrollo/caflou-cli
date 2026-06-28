@@ -10,6 +10,21 @@ Filter parameters are passed with `--filter key=value` (repeatable). The CLI tra
 - **User IDs in filters come from the `user_id` column in `caflou masterdata list account_users`**, not the account membership ID. Each account_user record has two IDs: the account membership `id` (internal, not useful for filtering) and `user_id` (the underlying user ID used in all entity filter lookups). The `account_users` table displays `user_id` in the first column for this reason.
 - **Singular boolean flags use their plural noun form.** The `unpaids=true` flag works; `unpaid=true` does not.
 
+## Sorting (`sort_by` / `sort_direction`)
+
+The web app sends `filter[sort_by]=last_update` and `filter[sort_direction]=ASC` / `DESC`. These can be passed via `--filter sort_by=last_update --filter sort_direction=DESC`.
+
+Tested results (June 2026):
+
+| Resource | `sort_direction` effect |
+|---|---|
+| `projects` | Works — ASC and DESC return different items on page 1 |
+| `companies` | Works — same pattern as projects |
+| `tasks` | Partially — direction is reversed relative to expectation (DESC returns older dates than ASC) |
+| `invoices` | No effect — identical results for ASC and DESC |
+
+**Caveat:** The sort affects which items appear on page 1 but the within-page order is not cleanly reversed — items within a page are still returned in the API's natural ascending order. To get a fully sorted list you would need to fetch all pages and sort client-side.
+
 ---
 
 ## Documents (`caflou document list`)
