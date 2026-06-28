@@ -14,11 +14,15 @@ _ACCOUNT = "test-account"
 _PROJECT = {
     "id": 1, "name": "Skříň Dejvice", "project_status_name": "In progress",
     "start_date": "2024-01-15", "end_date": "2024-06-30", "company_id": 10,
-    "task_ids": [501, 502],
+    "task_ids": [501, 502], "company_ids": [20],  # 10 is primary (company_id), 20 is linked supplier
 }
 _COMPANY = {
     "id": 10, "name": "Acme s.r.o.", "company_type_name": "Customer",
     "company_status_name": "Active", "email": "info@acme.cz",
+}
+_SUPPLIER = {
+    "id": 20, "name": "Best Supplies s.r.o.", "company_type_name": "Supplier",
+    "company_status_name": "Active", "email": "info@bestsupplies.cz",
 }
 _CONTACTS = [
     {"id": 200, "name": "Jan Novák", "email": "jan.novak@acme.cz", "phone": "+420 777 111"},
@@ -83,12 +87,12 @@ def _list_page(results):
 # ── project context ───────────────────────────────────────────────────────────
 
 def _project_fake_with_tasks(task_list):
-    """Build a FakeClient for project context with individual task GETs seeded."""
+    """Build a FakeClient for project context with individual task and company GETs seeded."""
     project = {**_PROJECT, "task_ids": [t["id"] for t in task_list]}
     fake = (FakeClient(_ACCOUNT)
         .seed("GET", "projects/1", project)
         .seed("GET", "companies/10", _COMPANY)
-        .seed("GET", "companies/10/contacts", _CONTACTS)
+        .seed("GET", "companies/20", _SUPPLIER)
         .seed("LIST", "invoices", _list_page(_DOCUMENTS))
     )
     for t in task_list:
@@ -110,10 +114,12 @@ def test_project_context_sections(runner, tmp_path):
     fake = _project_fake_with_tasks(_TASKS)
     with patch("caflou_cli.commands.project.get_client", return_value=fake):
         result = runner.invoke(app, ["project", "context", "1"])
-    assert "COMPANY" in result.stdout
+    assert "COMPANIES (2)" in result.stdout
+    assert "Customer (1)" in result.stdout
+    assert "Supplier (1)" in result.stdout
     assert "Acme s.r.o." in result.stdout
-    assert "CONTACTS (2)" in result.stdout
-    assert "Jan Novák" in result.stdout
+    assert "Best Supplies s.r.o." in result.stdout
+    assert "CONTACTS" not in result.stdout
     assert "TASKS (2)" in result.stdout
     assert "Measure kitchen" in result.stdout
     assert "DOCUMENTS (1)" in result.stdout
@@ -127,8 +133,8 @@ def test_project_context_json(runner, tmp_path):
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert data["project"]["id"] == 1
-    assert data["company"]["id"] == 10
-    assert len(data["contacts"]) == 2
+    assert len(data["companies"]) == 2
+    assert "contacts" not in data
     assert len(data["tasks"]) == 2
     assert len(data["documents"]) == 1
 
@@ -136,32 +142,29 @@ def test_project_context_json(runner, tmp_path):
 def test_project_context_cap(runner, tmp_path):
     many_tasks = [
         {"id": 500 + i, "name": f"Task {i}", "task_status_name": "To do", "due_date": None}
-        for i in range(15)
+        for i in range(25)
     ]
     fake = _project_fake_with_tasks(many_tasks)
-    # contacts and invoices not needed for cap test — override with empty
-    fake.seed("GET", "companies/10/contacts", [])
     fake.seed("LIST", "invoices", _list_page([]))
     with patch("caflou_cli.commands.project.get_client", return_value=fake):
         result = runner.invoke(app, ["project", "context", "1"])
     assert "(+ 5 more" in result.stdout
     shown = [l for l in result.stdout.splitlines() if l.startswith("    ") and "Task" in l]
-    assert len(shown) == 10
+    assert len(shown) == 20
 
 
 def test_project_context_all_flag_removes_cap(runner, tmp_path):
     many_tasks = [
         {"id": 500 + i, "name": f"Task {i}", "task_status_name": "To do", "due_date": None}
-        for i in range(15)
+        for i in range(25)
     ]
     fake = _project_fake_with_tasks(many_tasks)
-    fake.seed("GET", "companies/10/contacts", [])
     fake.seed("LIST", "invoices", _list_page([]))
     with patch("caflou_cli.commands.project.get_client", return_value=fake):
         result = runner.invoke(app, ["project", "context", "1", "--all"])
     assert "(+ " not in result.stdout
     shown = [l for l in result.stdout.splitlines() if l.startswith("    ") and "Task" in l]
-    assert len(shown) == 15
+    assert len(shown) == 25
 
 
 def test_project_context_failed_section(runner, tmp_path):
@@ -175,7 +178,7 @@ def test_project_context_failed_section(runner, tmp_path):
     fake = ErroringClient(_ACCOUNT)
     fake.seed("GET", "projects/1", _PROJECT)
     fake.seed("GET", "companies/10", _COMPANY)
-    fake.seed("GET", "companies/10/contacts", [])
+    fake.seed("GET", "companies/20", _SUPPLIER)
     for t in _TASKS:
         fake.seed("GET", f"tasks/{t['id']}", t)
 

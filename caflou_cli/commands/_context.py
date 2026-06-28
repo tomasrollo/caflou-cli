@@ -9,7 +9,7 @@ from caflou_cli.api import ClientProtocol
 from caflou_cli.cache import enrich_from_entity
 from caflou_cli.output import print_json
 
-_DEFAULT_LIMIT = 10
+_DEFAULT_LIMIT = 20
 
 
 # ── rendering ─────────────────────────────────────────────────────────────────
@@ -203,16 +203,23 @@ def project_context(
     limit: Optional[int] = _DEFAULT_LIMIT,
     json_output: bool = False,
 ) -> None:
-    """Context view for a project: company, contacts, tasks, documents."""
+    """Context view for a project: linked companies by type, tasks, documents."""
     project = client.get(f"projects/{id}")
     enrich_from_entity(client.account_id, "projects", [project])
-    company_id = project.get("company_id")
 
-    company = _safe(lambda: client.get(f"companies/{company_id}")) if company_id else None
-    if company:
-        enrich_from_entity(client.account_id, "companies", [company])
-
-    contacts = _contacts_for_company(client, company_id) if company_id else []
+    # Companies: merge primary company_id (customer) with company_ids (linked companies),
+    # deduplicating in case of overlap. Primary company goes first so it's always fetched.
+    primary_id = project.get("company_id")
+    linked_ids = project.get("company_ids") or []
+    seen: set = set()
+    company_id_list: list = []
+    for cid in ([primary_id] if primary_id else []) + linked_ids:
+        if cid not in seen:
+            seen.add(cid)
+            company_id_list.append(cid)
+    companies, total_companies = _fetch_by_ids(client, "companies", company_id_list, limit)
+    if companies:
+        enrich_from_entity(client.account_id, "companies", companies)
 
     # Tasks: use task_ids from the project response — authoritative, no filter guessing.
     task_ids = project.get("task_ids") or []
@@ -224,14 +231,16 @@ def project_context(
                          post_filter=lambda r: r.get("project_id") == id)
 
     if json_output:
-        # For JSON, fetch remaining tasks beyond the display limit
+        # For JSON, fetch all items beyond the display limit
+        if limit is not None and total_companies > len(companies):
+            extra, _ = _fetch_by_ids(client, "companies", company_id_list[len(companies):], limit=None)
+            companies = companies + extra
         if limit is not None and total_tasks > len(tasks):
             extra, _ = _fetch_by_ids(client, "tasks", task_ids[len(tasks):], limit=None)
             tasks = tasks + extra
         print_json({
             "project": project,
-            "company": company,
-            "contacts": contacts or [],
+            "companies": companies,
             "tasks": tasks,
             "documents": docs or [],
         })
@@ -243,16 +252,26 @@ def project_context(
         project.get("project_status_name") or "", dates,
     ] if x))
 
-    if company_id and company is None:
-        _failed("COMPANY")
-    elif company:
-        _section_header("COMPANY")
-        _print_rows([_company_cells(company)])
-
-    _print_section(
-        "CONTACTS", contacts, _contact_cells, limit,
-        f"caflou contact list --filter company_id={company_id}",
-    )
+    # Companies grouped by type — type is the group header so omit it from each row.
+    # The primary company's type group sorts first; all others are alphabetical.
+    if company_id_list:
+        _section_header("COMPANIES", total_companies)
+        grouped: dict[str, list] = {}
+        for c in companies:
+            t = c.get("company_type_name") or "Other"
+            grouped.setdefault(t, []).append(c)
+        primary_type = companies[0].get("company_type_name") if companies else None
+        for type_name, type_cos in sorted(
+            grouped.items(), key=lambda kv: (0 if kv[0] == primary_type else 1, kv[0])
+        ):
+            typer.echo(f"    {type_name} ({len(type_cos)})")
+            _print_rows(
+                [[str(c["id"]), c.get("name") or "-", c.get("email") or "-"] for c in type_cos],
+                indent="      ",
+            )
+        overflow = total_companies - len(companies)
+        if overflow:
+            _overflow_hint(overflow, f"caflou project get {id} --json | jq '.company_ids'")
 
     # Tasks: total_tasks comes from task_ids length, not the fetched slice.
     _section_header("TASKS", total_tasks)
