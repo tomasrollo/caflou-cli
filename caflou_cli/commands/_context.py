@@ -160,17 +160,26 @@ def _list_results(
     resource: str,
     filters: dict,
     post_filter=None,
+    all_pages: bool = False,
 ) -> Optional[list]:
-    """Fetch up to 100 results, then apply post_filter as a client-side safety net.
+    """Fetch results with optional post_filter as a client-side safety net.
 
     The Caflou API silently ignores unknown filter keys instead of erroring, so
     server-side filters are best-effort.  post_filter=(lambda r: r["x"] == v)
     guarantees correctness regardless of whether the server honours the filter.
+
+    Set all_pages=True when the resource can span many pages and a one-page sample
+    would miss results (e.g. projects for a company across 500+ projects).
     """
-    result = _safe(lambda: client.list(resource, per=100, filters=filters))
-    if result is None:
+    if all_pages:
+        records = _safe(lambda: client.list_all(resource, filters=filters))
+    else:
+        result = _safe(lambda: client.list(resource, per=100, filters=filters))
+        if result is None:
+            return None
+        records = result.get("results", [])
+    if records is None:
         return None
-    records = result.get("results", [])
     if post_filter is not None:
         records = [r for r in records if post_filter(r)]
     return records
@@ -318,7 +327,8 @@ def contact_context(
 
     projects = (
         _list_results(client, "projects", {"company_id": company_id},
-                      post_filter=lambda r: r.get("company_id") == company_id)
+                      post_filter=lambda r: r.get("company_id") == company_id,
+                      all_pages=True)
         if company_id else []
     )
 
@@ -361,7 +371,8 @@ def company_context(
 
     contacts = _contacts_for_company(client, id)
     projects = _list_results(client, "projects", {"company_id": id},
-                             post_filter=lambda r: r.get("company_id") == id)
+                             post_filter=lambda r: r.get("company_id") == id,
+                             all_pages=True)
     docs = _list_results(client, "invoices", {"to_company_id": id},
                          post_filter=lambda r: r.get("to_company_id") == id)
 
