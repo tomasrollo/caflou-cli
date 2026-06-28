@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
-from caflou_cli.cache import enrich_from_entity, load_cache
+from caflou_cli.cache import enrich_from_entity, find_in_cache, load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
@@ -53,6 +53,49 @@ def project_get(
         print_json(data)
     else:
         print_record(data)
+
+
+@app.command("find")
+def project_find(
+    name: str = typer.Argument(..., help="Name to search for (case-insensitive substring)."),
+    refresh: bool = typer.Option(False, "--refresh", help="Bypass cache and search API directly."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
+) -> None:
+    """Find projects by name. Searches local cache first, falls back to API.
+
+    Run 'caflou project list --all' periodically to keep the cache fresh.
+
+    Examples:
+        caflou project find "Skříň"
+        caflou project find "Skříň" --json | jq '.[0].id'
+    """
+    client = get_client(account)
+
+    if not refresh:
+        cached = find_in_cache(client.account_id, "projects", name)
+        if cached:
+            if json_output:
+                print_json(cached)
+            else:
+                for r in cached:
+                    typer.echo(f"{r['id']}\t{r['name']}")
+            return
+        msg = "Cache empty, searching API..." if cached is None else "Not in cache, searching API..."
+        typer.echo(msg, err=True)
+    else:
+        typer.echo("Searching API...", err=True)
+
+    data = client.list("projects", filters={"search": name})
+    api_results = data.get("results", [])
+    enrich_from_entity(client.account_id, "projects", api_results)
+    results = [{"id": r["id"], "name": r.get("name") or ""} for r in api_results]
+
+    if json_output:
+        print_json(results)
+    else:
+        for r in results:
+            typer.echo(f"{r['id']}\t{r['name']}")
 
 
 # ── template command ──────────────────────────────────────────────────────────
@@ -126,6 +169,7 @@ def project_create(
 
     client = get_client(account)
     result = client.post("projects", data)
+    enrich_from_entity(client.account_id, "projects", [result])
 
     if json_output:
         print_json(result)
@@ -181,6 +225,7 @@ def project_update(
 
     client = get_client(account)
     result = client.patch(f"projects/{id}", payload)
+    enrich_from_entity(client.account_id, "projects", [result])
 
     if json_output:
         print_json(result)

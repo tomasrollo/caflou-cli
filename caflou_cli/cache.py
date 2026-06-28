@@ -79,14 +79,17 @@ PASSIVE_ENRICHMENT: dict[str, list[tuple[str, str, str]]] = {
         ("project_type_id",     "project_type_name",     "project_types"),
         ("project_status_id",   "project_status_name",   "project_statuses"),
         ("project_priority_id", "project_priority_name", "project_priorities"),
+        ("id",                  "name",                  "projects"),
     ],
     "companies": [
         ("company_type_id",   "company_type_name",   "company_types"),
         ("company_status_id", "company_status_name", "company_statuses"),
         ("company_phase_id",  "company_phase_name",  "company_phases"),
+        ("id",                "name",                "companies"),
     ],
     "invoices": [
         ("invoice_status_id", "invoice_state_name", "invoice_statuses"),
+        ("id",                "name",               "documents"),
     ],
     "timesheets": [
         ("timesheet_status_id", "timesheet_status_name", "timesheet_statuses"),
@@ -163,14 +166,15 @@ def enrich_b(account_id: str, cache_name: str, records: list[dict]) -> None:
         except (json.JSONDecodeError, OSError):
             pass
 
-    original_count = len(existing)
+    changed = False
     for r in records:
         rid = r.get("id")
-        if rid is not None and rid not in existing:
+        if rid is not None and existing.get(rid) != r:
             existing[rid] = r
+            changed = True
 
-    if len(existing) == original_count:
-        return  # nothing new — skip write
+    if not changed:
+        return
 
     path.parent.mkdir(parents=True, exist_ok=True)
     synced_at = (load_cache(account_id, cache_name) or {}).get("synced_at")
@@ -196,3 +200,23 @@ def enrich_from_entity(account_id: str, entity: str, records: list[dict]) -> Non
 
     for cache_name, pairs in buckets.items():
         enrich_b(account_id, cache_name, pairs)
+
+
+def find_in_cache(account_id: str, cache_name: str, query: str) -> Optional[list[dict]]:
+    """Search an entity name cache for case-insensitive substring matches.
+
+    Returns None if the cache is absent or empty — caller should fall back to API.
+    Returns a list (possibly empty) if the cache has records (no match found).
+    """
+    data = load_cache(account_id, cache_name)
+    if not data:
+        return None
+    records = data.get("records") or []
+    if not records:
+        return None
+    q = query.lower()
+    return [
+        {"id": r["id"], "name": r.get("name") or ""}
+        for r in records
+        if r.get("id") is not None and q in (r.get("name") or "").lower()
+    ]
