@@ -14,11 +14,14 @@ _DEFAULT_LIMIT = 20
 
 # ── rendering ─────────────────────────────────────────────────────────────────
 
-def _print_rows(rows: list[list], indent: str = "    ") -> None:
+def _print_rows(rows: list[list], indent: str = "    ", headers: Optional[list[str]] = None) -> None:
     if not rows:
         return
     str_rows = [[str(c) if c is not None else "-" for c in row] for row in rows]
-    widths = [max(len(r[i]) for r in str_rows) for i in range(len(str_rows[0]))]
+    all_rows = ([headers] if headers else []) + str_rows
+    widths = [max(len(r[i]) for r in all_rows) for i in range(len(all_rows[0]))]
+    if headers:
+        typer.echo(indent + "  ".join(c.ljust(w) for c, w in zip(headers, widths)))
     for row in str_rows:
         typer.echo(indent + "  ".join(c.ljust(w) for c, w in zip(row, widths)))
 
@@ -61,6 +64,14 @@ def _money(value, currency: Optional[str]) -> str:
 
 
 # ── field formatters ──────────────────────────────────────────────────────────
+
+_PROJECT_HEADERS  = ["ID", "NAME", "STATUS", "DATES"]
+_COMPANY_HEADERS  = ["ID", "NAME", "TYPE", "EMAIL"]
+_CONTACT_HEADERS  = ["ID", "NAME", "EMAIL", "PHONE"]
+_TASK_HEADERS     = ["ID", "NAME", "STATUS", "ASSIGNEE", "DUE"]
+_DOCUMENT_HEADERS = ["ID", "NUMBER", "KIND", "STATE", "TOTAL", "PAID"]
+_TRANSFER_HEADERS = ["ID", "NAME", "CATEGORY", "TOTAL"]
+
 
 def _project_cells(r: dict) -> list:
     return [
@@ -128,6 +139,7 @@ def _print_section(
     cell_fn,
     limit: Optional[int],
     overflow_cmd: str,
+    headers: Optional[list[str]] = None,
 ) -> None:
     if records is None:
         _failed(label)
@@ -136,7 +148,7 @@ def _print_section(
     rows = [cell_fn(r) for r in records]
     to_show = rows if limit is None else rows[:limit]
     overflow = len(rows) - len(to_show)
-    _print_rows(to_show)
+    _print_rows(to_show, headers=headers)
     if overflow:
         _overflow_hint(overflow, overflow_cmd)
 
@@ -268,6 +280,7 @@ def project_context(
             _print_rows(
                 [[str(c["id"]), c.get("name") or "-", c.get("email") or "-"] for c in type_cos],
                 indent="      ",
+                headers=["ID", "NAME", "EMAIL"],
             )
         overflow = total_companies - len(companies)
         if overflow:
@@ -275,7 +288,7 @@ def project_context(
 
     # Tasks: total_tasks comes from task_ids length, not the fetched slice.
     _section_header("TASKS", total_tasks)
-    _print_rows([_task_cells(t) for t in tasks])
+    _print_rows([_task_cells(t) for t in tasks], headers=_TASK_HEADERS)
     overflow = total_tasks - len(tasks)
     if overflow:
         _overflow_hint(overflow, f"caflou task list --filter project_id={id}")
@@ -283,6 +296,7 @@ def project_context(
     _print_section(
         "DOCUMENTS", docs, _document_cells, limit,
         f"caflou document list --filter project_id={id}",
+        headers=_DOCUMENT_HEADERS,
     )
 
 
@@ -325,11 +339,12 @@ def contact_context(
         _failed("COMPANY")
     elif company:
         _section_header("COMPANY")
-        _print_rows([_company_cells(company)])
+        _print_rows([_company_cells(company)], headers=_COMPANY_HEADERS)
 
     _print_section(
         "PROJECTS", projects, _project_cells, limit,
         f"caflou project list --filter company_id={company_id}",
+        headers=_PROJECT_HEADERS,
     )
 
 
@@ -368,14 +383,17 @@ def company_context(
     _print_section(
         "CONTACTS", contacts, _contact_cells, limit,
         f"caflou contact list --filter company_id={id}",
+        headers=_CONTACT_HEADERS,
     )
     _print_section(
         "PROJECTS", projects, _project_cells, limit,
         f"caflou project list --filter company_id={id}",
+        headers=_PROJECT_HEADERS,
     )
     _print_section(
         "DOCUMENTS", docs, _document_cells, limit,
         f"caflou document list --filter to_company_id={id}",
+        headers=_DOCUMENT_HEADERS,
     )
 
 
@@ -453,17 +471,18 @@ def document_context(
         _failed("BUYER")
     elif company:
         _section_header("BUYER")
-        _print_rows([_company_cells(company)])
+        _print_rows([_company_cells(company)], headers=_COMPANY_HEADERS)
 
     if project_id and project is None:
         _failed("PROJECT")
     elif project:
         _section_header("PROJECT")
-        _print_rows([_project_cells(project)])
+        _print_rows([_project_cells(project)], headers=_PROJECT_HEADERS)
 
     _print_section(
         "PAYMENTS", transfers, _transfer_cells, limit,
         f"caflou transfer list --filter invoice_id={id}",
+        headers=_TRANSFER_HEADERS,
     )
 
     if total_related:
@@ -474,7 +493,7 @@ def document_context(
              r.get("invoice_state_name") or "-",
              _money(r.get("total_cache"), r.get("currency"))]
             for r in related_docs
-        ])
+        ], headers=["KIND", "ID", "NUMBER", "STATE", "TOTAL"])
         overflow = total_related - len(related_docs)
         if overflow:
             _overflow_hint(overflow, f"caflou document get {id} --json | jq '.related_documents'")
@@ -522,15 +541,16 @@ def task_context(
         _failed("PROJECT")
     elif project:
         _section_header("PROJECT")
-        _print_rows([_project_cells(project)])
+        _print_rows([_project_cells(project)], headers=_PROJECT_HEADERS)
 
     if company_id and company is None:
         _failed("COMPANY")
     elif company:
         _section_header("COMPANY")
-        _print_rows([_company_cells(company)])
+        _print_rows([_company_cells(company)], headers=_COMPANY_HEADERS)
 
     _print_section(
         "SUBTASKS", subtasks, _task_cells, limit,
         f"caflou task list --filter parent_id={id}",
+        headers=_TASK_HEADERS,
     )
