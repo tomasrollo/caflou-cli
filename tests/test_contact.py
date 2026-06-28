@@ -73,3 +73,24 @@ def test_contact_delete_force_uses_nested_path(runner):
     assert result.exit_code == 0
     delete_call = next(c for c in fake.calls if c["method"] == "DELETE")
     assert delete_call["path"] == "companies/100/contacts/5"
+
+
+# ── list scope ────────────────────────────────────────────────────────────────
+
+_LIST_PAGE = {"results": [], "total_results": 0, "total_pages": 1, "page": 1}
+
+
+def test_contact_list_company_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "contacts", _LIST_PAGE)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        runner.invoke(app, ["contact", "list", "--company-id", "100"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 100}
+
+
+def test_contact_list_no_company_id_sends_no_scope(runner):
+    fake = FakeClient().seed("LIST", "contacts", _LIST_PAGE)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        runner.invoke(app, ["contact", "list"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] is None

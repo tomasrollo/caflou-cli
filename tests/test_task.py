@@ -43,6 +43,78 @@ def test_task_list_passes_filter(runner):
     assert list_call["filters"] == {"project_id": "99"}
 
 
+def test_task_list_project_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--project-id", "7"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "project", "scope_id": 7}
+
+
+def test_task_list_company_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--company-id", "3"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 3}
+
+
+def test_task_list_project_id_takes_precedence_over_company_id(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--project-id", "7", "--company-id", "3"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "project", "scope_id": 7}
+
+
+def test_task_list_active_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--active"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("active") == "true"
+
+
+def test_task_list_task_status_id_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--task-status-id", "1", "--task-status-id", "2"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("task_status_ids") == "1,2"
+
+
+def test_task_list_task_type_id_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--task-type-id", "10"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("task_type_ids") == "10"
+
+
+def test_task_list_user_id_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--user-id", "5", "--user-id", "6"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("target_user_ids") == "5,6"
+
+
+def test_task_list_im_involved_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--im-involved"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("im_involved") == "true"
+
+
+def test_task_list_assigned_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "tasks", _PAGE)
+    with patch("caflou_cli.commands.task.get_client", return_value=fake):
+        runner.invoke(app, ["task", "list", "--assigned"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("assigned") == "true"
+
+
 # ── get ───────────────────────────────────────────────────────────────────────
 
 def test_task_get_shows_record(runner):

@@ -57,3 +57,32 @@ def test_transfer_update_no_flags_errors(runner):
     with patch("caflou_cli.commands.transfer.get_client", return_value=fake):
         result = runner.invoke(app, ["transfer", "update", "1"])
     assert result.exit_code != 0
+
+
+# ── list scope ────────────────────────────────────────────────────────────────
+
+_LIST_PAGE = {"results": [], "total_results": 0, "total_pages": 1, "page": 1}
+
+
+def test_transfer_list_company_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "transfers", _LIST_PAGE)
+    with patch("caflou_cli.commands.transfer.get_client", return_value=fake):
+        runner.invoke(app, ["transfer", "list", "--company-id", "5"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 5}
+
+
+def test_transfer_list_project_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "transfers", _LIST_PAGE)
+    with patch("caflou_cli.commands.transfer.get_client", return_value=fake):
+        runner.invoke(app, ["transfer", "list", "--project-id", "3"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "project", "scope_id": 3}
+
+
+def test_transfer_list_company_id_takes_precedence_over_project_id(runner):
+    fake = FakeClient().seed("LIST", "transfers", _LIST_PAGE)
+    with patch("caflou_cli.commands.transfer.get_client", return_value=fake):
+        runner.invoke(app, ["transfer", "list", "--company-id", "5", "--project-id", "3"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 5}

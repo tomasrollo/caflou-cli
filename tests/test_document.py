@@ -219,3 +219,64 @@ def test_document_create_financial_kind_missing_date_errors(runner):
         result = runner.invoke(app, ["document", "create", "--from-file", "-"], input=json.dumps(body))
     assert result.exit_code != 0
     assert not any(c["method"] == "POST" for c in fake.calls)
+
+
+# ── list filters and scopes ───────────────────────────────────────────────────
+
+_LIST_PAGE = {"results": [], "total_results": 0, "total_pages": 1, "page": 1}
+
+
+def test_document_list_kind_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--kind", "offer"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"kind": "offer"}
+
+
+def test_document_list_invalid_kind_errors(runner):
+    fake = FakeClient()
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        result = runner.invoke(app, ["document", "list", "--kind", "bogus"])
+    assert result.exit_code != 0
+    assert not any(c["method"] == "LIST" for c in fake.calls)
+
+
+def test_document_list_company_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--company-id", "10"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 10}
+
+
+def test_document_list_project_id_sets_scope(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--project-id", "5"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "project", "scope_id": 5}
+
+
+def test_document_list_kind_and_company_id_combined(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--kind", "invoice", "--company-id", "10"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["scope"] == {"scope_type": "company", "scope_id": 10, "kind": "invoice"}
+
+
+def test_document_list_unpaid_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--unpaid"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("unpaids") == "true"
+
+
+def test_document_list_issued_sets_filter(runner):
+    fake = FakeClient().seed("LIST", "invoices", _LIST_PAGE)
+    with patch("caflou_cli.commands.document.get_client", return_value=fake):
+        runner.invoke(app, ["document", "list", "--issued"])
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"].get("issueds") == "true"
