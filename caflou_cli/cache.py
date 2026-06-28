@@ -68,8 +68,9 @@ CATEGORY_B: dict[str, dict] = {
 
 ALL_TYPES = set(CATEGORY_A) | set(CATEGORY_B)
 
-# Maps entity name -> list of (id_field, name_field, cache_name) for passive enrichment
-PASSIVE_ENRICHMENT: dict[str, list[tuple[str, str, str]]] = {
+# Maps entity name -> list of (id_field, name_field, cache_name[, extra_fields]) for passive enrichment.
+# extra_fields is an optional list of additional field names to store alongside {id, name}.
+PASSIVE_ENRICHMENT: dict[str, list[tuple]] = {
     "tasks": [
         ("task_type_id",       "task_type_name",       "task_types"),
         ("task_status_id",     "task_status_name",     "task_statuses"),
@@ -101,6 +102,7 @@ PASSIVE_ENRICHMENT: dict[str, list[tuple[str, str, str]]] = {
     ],
     "contacts": [
         ("contact_type_id", "contact_type_name", "contact_types"),
+        ("id",              "name",              "contacts",  ["email"]),
     ],
 }
 
@@ -192,22 +194,36 @@ def enrich_from_entity(account_id: str, entity: str, records: list[dict]) -> Non
         return
 
     buckets: dict[str, list[dict]] = {}
-    for id_field, name_field, cache_name in mapping:
+    for entry in mapping:
+        id_field, name_field, cache_name = entry[0], entry[1], entry[2]
+        extra_fields: list[str] = entry[3] if len(entry) > 3 else []
         for r in records:
             rid = r.get(id_field)
             if rid is not None:
-                buckets.setdefault(cache_name, []).append({"id": rid, "name": r.get(name_field)})
+                rec: dict = {"id": rid, "name": r.get(name_field)}
+                for f in extra_fields:
+                    if r.get(f) is not None:
+                        rec[f] = r[f]
+                buckets.setdefault(cache_name, []).append(rec)
 
     for cache_name, pairs in buckets.items():
         enrich_b(account_id, cache_name, pairs)
 
 
-def find_in_cache(account_id: str, cache_name: str, query: str) -> Optional[list[dict]]:
-    """Search an entity name cache for case-insensitive substring matches.
+def find_in_cache(
+    account_id: str,
+    cache_name: str,
+    query: str,
+    search_fields: Optional[list[str]] = None,
+) -> Optional[list[dict]]:
+    """Search an entity cache for case-insensitive substring matches.
 
+    search_fields: which fields to search (default: ["name"]).
     Returns None if the cache is absent or empty — caller should fall back to API.
-    Returns a list (possibly empty) if the cache has records (no match found).
+    Returns the full stored records (possibly empty list) if the cache has records.
     """
+    if search_fields is None:
+        search_fields = ["name"]
     data = load_cache(account_id, cache_name)
     if not data:
         return None
@@ -216,7 +232,7 @@ def find_in_cache(account_id: str, cache_name: str, query: str) -> Optional[list
         return None
     q = query.lower()
     return [
-        {"id": r["id"], "name": r.get("name") or ""}
-        for r in records
-        if r.get("id") is not None and q in (r.get("name") or "").lower()
+        r for r in records
+        if r.get("id") is not None
+        and any(q in (r.get(f) or "").lower() for f in search_fields)
     ]

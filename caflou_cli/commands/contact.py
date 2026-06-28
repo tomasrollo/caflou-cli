@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 
 from caflou_cli.api import get_client
-from caflou_cli.cache import enrich_from_entity, load_cache
+from caflou_cli.cache import enrich_from_entity, find_in_cache, load_cache
 from caflou_cli.output import (
     error, print_json, print_pagination, print_record, print_table,
 )
@@ -42,6 +42,63 @@ def contact_list(
         client=client, json_output=json_output, page=page,
         per=per, all_pages=all_pages, filters=parse_filters(filter),
     )
+
+
+@app.command("find")
+def contact_find(
+    name: str = typer.Argument(..., help="Name to search for (case-insensitive substring)."),
+    refresh: bool = typer.Option(False, "--refresh", help="Bypass cache and search API directly."),
+    account: Optional[str] = typer.Option(None, "--account", help="Account ID or name override."),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
+) -> None:
+    """Find contacts by name or email. Searches local cache first, falls back to API.
+
+    The cache stores names only, so email searches always fall back to the API —
+    this is expected and correct. Partial email domains also work (e.g. "acme.com").
+
+    Run 'caflou contact list --all' periodically to keep the name cache fresh.
+
+    Examples:
+        caflou contact find "Jan"
+        caflou contact find "jan@acme.com"
+        caflou contact find "acme.com"
+        caflou contact find "Jan" --json | jq '.[0].id'
+    """
+    client = get_client(account)
+
+    if not refresh:
+        cached = find_in_cache(client.account_id, "contacts", name, search_fields=["name", "email"])
+        if cached:
+            if json_output:
+                print_json(cached)
+            else:
+                for r in cached:
+                    parts = [str(r["id"]), r.get("name") or ""]
+                    if r.get("email"):
+                        parts.append(r["email"])
+                    typer.echo("\t".join(parts))
+            return
+        msg = "Cache empty, searching API..." if cached is None else "Not in cache, searching API..."
+        typer.echo(msg, err=True)
+    else:
+        typer.echo("Searching API...", err=True)
+
+    data = client.list("contacts", filters={"search": name})
+    api_results = data.get("results", [])
+    enrich_from_entity(client.account_id, "contacts", api_results)
+    results = [
+        {"id": r["id"], "name": r.get("name") or "", "email": r.get("email") or ""}
+        for r in api_results
+    ]
+
+    if json_output:
+        print_json(results)
+    else:
+        for r in results:
+            parts = [str(r["id"]), r["name"]]
+            if r.get("email"):
+                parts.append(r["email"])
+            typer.echo("\t".join(parts))
 
 
 @app.command("get")
@@ -137,6 +194,7 @@ def contact_create(
 
     client = get_client(account)
     result = client.post(f"companies/{company_id}/contacts", data)
+    enrich_from_entity(client.account_id, "contacts", [result])
 
     if json_output:
         print_json(result)
@@ -182,6 +240,7 @@ def contact_update(
         error(f"Contact {id} has no company_id — cannot update via API.")
 
     result = client.patch(f"companies/{company_id}/contacts/{id}", payload)
+    enrich_from_entity(client.account_id, "contacts", [result])
 
     if json_output:
         print_json(result)

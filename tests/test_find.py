@@ -9,6 +9,12 @@ from tests.fake_client import FakeClient
 
 _ACCOUNT = "test-account"
 
+_CONTACTS = [
+    {"id": 200, "name": "Jan Novák",      "email": "jan.novak@acme.cz"},
+    {"id": 201, "name": "Jan Svoboda",    "email": "jan.svoboda@beta.cz"},
+    {"id": 202, "name": "Marie Nováková", "email": "marie@acme.cz"},
+]
+
 _PROJECTS = [
     {"id": 1, "name": "Skříň Dejvice"},
     {"id": 2, "name": "Skříň Holešovice"},
@@ -206,3 +212,89 @@ def test_company_create_enriches_cache(runner, tmp_path):
         )
     cache_file = tmp_path / "cache" / _ACCOUNT / "companies.json"
     assert cache_file.exists()
+
+
+# ── contact find ──────────────────────────────────────────────────────────────
+
+def test_contact_find_cache_hit_by_name(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "jan"])
+    assert result.exit_code == 0
+    lines = result.stdout.strip().splitlines()
+    assert len(lines) == 2
+    assert lines[0] == "200\tJan Novák\tjan.novak@acme.cz"
+    assert lines[1] == "201\tJan Svoboda\tjan.svoboda@beta.cz"
+    assert not any(c["method"] == "LIST" for c in fake.calls)
+
+
+def test_contact_find_cache_hit_by_email(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "acme.cz"])
+    assert result.exit_code == 0
+    lines = result.stdout.strip().splitlines()
+    assert len(lines) == 2
+    ids = {int(l.split("\t")[0]) for l in lines}
+    assert ids == {200, 202}
+    assert not any(c["method"] == "LIST" for c in fake.calls)
+
+
+def test_contact_find_cache_hit_by_full_email(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "jan.novak@acme.cz"])
+    assert result.exit_code == 0
+    lines = result.stdout.strip().splitlines()
+    assert len(lines) == 1
+    assert lines[0] == "200\tJan Novák\tjan.novak@acme.cz"
+
+
+def test_contact_find_no_cache_falls_back_to_api(runner, tmp_path):
+    fake = FakeClient(_ACCOUNT).seed(
+        "LIST", "contacts", {"results": _CONTACTS[:1], "total_results": 1, "total_pages": 1}
+    )
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "Jan"])
+    assert result.exit_code == 0
+    assert "Cache empty" in result.output
+    list_call = next(c for c in fake.calls if c["method"] == "LIST")
+    assert list_call["filters"] == {"search": "Jan"}
+
+
+def test_contact_find_cache_miss_falls_back_to_api(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT).seed(
+        "LIST", "contacts", {"results": [], "total_results": 0, "total_pages": 1}
+    )
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "nonexistent"])
+    assert result.exit_code == 0
+    assert "Not in cache" in result.output
+    assert any(c["method"] == "LIST" for c in fake.calls)
+
+
+def test_contact_find_json(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT)
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "jan", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.stdout)
+    assert len(data) == 2
+    assert data[0] == {"id": 200, "name": "Jan Novák", "email": "jan.novak@acme.cz"}
+
+
+def test_contact_find_refresh(runner, tmp_path):
+    _write_cache(tmp_path, "contacts", _CONTACTS)
+    fake = FakeClient(_ACCOUNT).seed(
+        "LIST", "contacts", {"results": _CONTACTS[2:], "total_results": 1, "total_pages": 1}
+    )
+    with patch("caflou_cli.commands.contact.get_client", return_value=fake):
+        result = runner.invoke(app, ["contact", "find", "marie", "--refresh"])
+    assert result.exit_code == 0
+    assert any(c["method"] == "LIST" for c in fake.calls)
+    assert "202\tMarie Nováková" in result.stdout
